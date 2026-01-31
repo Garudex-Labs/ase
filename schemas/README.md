@@ -16,6 +16,7 @@ This directory contains formal JSON Schema definitions for all ASE protocol mess
 - `dispute-event.schema.json` - Dispute events for charge reconciliation and resolution
 - `audit-bundle.schema.json` - Audit bundles for compliance and transaction history
 - `version-negotiation.schema.json` - Version negotiation requests, responses, and compatibility
+- `version-migration.schema.json` - Version migration procedures and compatibility tracking
 
 ## Usage
 

@@ -347,12 +347,13 @@ Delegation token validation is rate limited:
 
 ### Supported Versions
 
-- **v1.0.0**: Current version with full feature set
-- **v2.0.0**: Future version (planned)
+- **v0.1.0**: Foundation version with basic cost declaration and audit bundles
+- **v1.0.0**: Adds delegation tokens and provisional charges
+- **v2.0.0**: Adds dispute resolution and charge reconciliation
 
 ### Version Negotiation
 
-Agents should negotiate the highest mutually supported version:
+Agents should negotiate the highest mutually supported version. See [Version Negotiation Guide](../docs/community/ase-protocol/version-negotiation.md) for detailed procedures.
 
 ```python
 def negotiate_version(local_versions, remote_versions):
@@ -360,12 +361,22 @@ def negotiate_version(local_versions, remote_versions):
     return max(common) if common else None
 ```
 
+### Version Migration
+
+For detailed migration procedures between versions, see the [Migration Guide](../docs/community/ase-protocol/migration-guide.md).
+
+**Migration Paths**:
+- v0.1.0 → v1.0.0: Add delegation tokens and provisional charges
+- v1.0.0 → v2.0.0: Add dispute resolution and reconciliation
+- Rollback procedures available for all migrations
+
 ### Backward Compatibility
 
 - All ASE messages are valid base protocol messages
 - Non-ASE agents can process ASE messages
 - Invalid economic metadata doesn't prevent processing
 - Newer versions support all features from older versions
+- Graceful degradation for unsupported features
 
 ## Implementation Checklist
 
