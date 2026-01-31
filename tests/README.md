@@ -86,7 +86,7 @@ Tests for version negotiation, protocol compliance, and backward compatibility.
 - JSON serialization compliance
 - Batch compliance validation
 
-### test_cross_framework_compatibility.py
+### test_framework_integration.py
 
 Tests for LangChain and AutoGPT integration and cross-framework compatibility.
 
@@ -112,6 +112,49 @@ Tests for LangChain and AutoGPT integration and cross-framework compatibility.
 - Certification criteria validation
 - Error handling robustness
 - Compatibility matrix verification
+
+### test_governance_process.py
+
+Tests for governance process validation and RFC proof-of-concept requirements.
+
+**Properties Tested**:
+- **Property 21: RFC Proof-of-Concept Requirement** - Validates that RFCs requiring POC cannot be approved without completed implementation
+
+**Requirements Validated**: 10.4
+
+**Test Coverage**:
+- RFC proposal structure validation
+- Proof-of-concept requirement enforcement
+- POC completion validation (repository URL, test results, acceptance criteria)
+- RFC approval blocking without POC
+- RFC status transition validation
+- Reviewer and approval vote tracking
+- RFC category-based POC requirements
+- Non-critical category POC exemption
+- RFC validator structure checks
+- Approval readiness validation
+
+### test_compliance_marking.py
+
+Tests for compliance certification and marking of non-compliant implementations.
+
+**Properties Tested**:
+- **Property 22: Compliance Marking for Failed Tests** - Validates that implementations failing tests are marked as non-compliant
+
+**Requirements Validated**: 10.5
+
+**Test Coverage**:
+- Compliance test execution and result tracking
+- Certification status determination based on test results
+- Failed test blocking certification
+- Non-compliant implementation registry marking
+- Compliance registry entry management
+- Failed test detail preservation (error messages, references)
+- Compliance score calculation
+- Compliance level validation (Basic, Standard, Advanced, Enterprise)
+- Registry lookup and filtering
+- Certification expiration handling
+- Conditional compliance for lower levels
 
 ### test_provisional_charge_lifecycle.py
 
