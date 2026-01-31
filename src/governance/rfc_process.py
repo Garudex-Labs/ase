@@ -10,7 +10,7 @@ Validates: Requirements 10.1, 10.4
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
 from decimal import Decimal
 
 
@@ -58,7 +58,7 @@ class ProofOfConceptRequirement:
     completion_date: Optional[datetime] = None
     reviewer_notes: Optional[str] = None
     
-    def validate_completion(self) -> tuple[bool, List[str]]:
+    def validate_completion(self) -> Tuple[bool, List[str]]:
         """
         Validate that proof-of-concept is complete and meets requirements.
         
@@ -141,7 +141,7 @@ class RFCProposal:
         }
         return self.category in poc_categories
     
-    def can_approve(self) -> tuple[bool, List[str]]:
+    def can_approve(self) -> Tuple[bool, List[str]]:
         """
         Check if RFC can be approved based on requirements.
         
@@ -199,7 +199,7 @@ class RFCProposal:
         self.approval_votes[reviewer] = approved
         self.updated_at = datetime.now(timezone.utc)
     
-    def transition_status(self, new_status: RFCStatus) -> tuple[bool, Optional[str]]:
+    def transition_status(self, new_status: RFCStatus) -> Tuple[bool, Optional[str]]:
         """
         Transition RFC to a new status with validation.
         
@@ -292,7 +292,7 @@ class RFCValidator:
     """
     
     @staticmethod
-    def validate_rfc_structure(rfc: RFCProposal) -> tuple[bool, List[str]]:
+    def validate_rfc_structure(rfc: RFCProposal) -> Tuple[bool, List[str]]:
         """
         Validate RFC proposal structure and required fields.
         
@@ -335,7 +335,7 @@ class RFCValidator:
         return len(errors) == 0, errors
     
     @staticmethod
-    def validate_poc_requirement(rfc: RFCProposal) -> tuple[bool, List[str]]:
+    def validate_poc_requirement(rfc: RFCProposal) -> Tuple[bool, List[str]]:
         """
         Validate proof-of-concept requirement for RFC.
         
@@ -358,7 +358,7 @@ class RFCValidator:
         return len(errors) == 0, errors
     
     @staticmethod
-    def validate_approval_readiness(rfc: RFCProposal) -> tuple[bool, List[str]]:
+    def validate_approval_readiness(rfc: RFCProposal) -> Tuple[bool, List[str]]:
         """
         Validate that RFC is ready for approval.
         
