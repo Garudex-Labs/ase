@@ -8,6 +8,111 @@ Property-based testing validates that the ASE protocol maintains correctness pro
 
 ## Test Files
 
+### test_ase_to_ase_communication.py
+
+Tests for ASE-to-ASE communication scenarios and message exchange.
+
+**Test Scenarios**:
+- ASE message structure validation
+- ASE-to-ASE message exchange
+- Charge event propagation
+- Delegation token exchange
+- Cost and budget negotiation
+- Audit trail propagation
+
+**Requirements Validated**: 9.1, 9.6
+
+**Test Coverage**:
+- Complete ASE message structure validation
+- Bidirectional communication between ASE agents
+- Economic metadata preservation during transmission
+- Charge event correlation and tracking
+- Delegation token validation and usage
+- Cost declaration and budget request exchange
+- Audit reference propagation and tracking
+- Currency consistency enforcement
+- Message serialization and deserialization
+
+### test_ase_to_non_ase_compatibility.py
+
+Tests for backward compatibility between ASE and non-ASE agents.
+
+**Test Scenarios**:
+- ASE message processing by non-ASE agents
+- Non-ASE message processing by ASE agents
+- ASE field removal preserves functionality
+- Graceful degradation on version mismatch
+- Batch message processing compatibility
+- JSON serialization compatibility
+- Error handling for unknown fields
+- ASE agent backward compatibility mode
+
+**Requirements Validated**: 9.2, 9.6
+
+**Test Coverage**:
+- Base protocol field accessibility
+- ASE metadata safe ignorance
+- Zero-cost transaction handling
+- Message functionality preservation
+- Version mismatch handling
+- Batch processing without errors
+- JSON round-trip consistency
+- Unknown field handling
+- Compatibility matrix validation
+- Support requirements verification
+
+### test_version_management.py
+
+Tests for version negotiation, protocol compliance, and backward compatibility.
+
+**Properties Tested**:
+- **Property 1: Backward Compatibility Preservation** - Validates base protocol functionality remains intact
+- **Property 17: Version Negotiation** - Validates highest mutually supported version selection
+- **Property 18: Version Mismatch Graceful Degradation** - Validates graceful degradation to compatible features
+- **Property 20: Test Suite Protocol Compliance Validation** - Validates protocol compliance and backward compatibility
+
+**Requirements Validated**: 1.1, 1.2, 1.5, 7.4, 7.6, 9.6
+
+**Test Coverage**:
+- Base protocol field preservation
+- ASE metadata optional handling
+- Zero-cost transaction processing
+- Version negotiation between agents
+- Common version identification
+- Highest version selection
+- Version mismatch detection
+- Feature set degradation
+- Protocol compliance validation
+- JSON serialization compliance
+- Batch compliance validation
+
+### test_cross_framework_compatibility.py
+
+Tests for LangChain and AutoGPT integration and cross-framework compatibility.
+
+**Test Scenarios**:
+- LangChain message wrapping compatibility
+- AutoGPT message wrapping compatibility
+- Cross-framework metadata consistency
+- LangChain wrapping performance benchmark
+- AutoGPT wrapping performance benchmark
+- LangChain certification validation
+- AutoGPT certification validation
+
+**Requirements Validated**: 9.5, 9.7
+
+**Test Coverage**:
+- Framework-specific message structure preservation
+- ASE metadata placement following conventions
+- Round-trip consistency validation
+- Framework convention adherence
+- Cross-framework metadata consistency
+- Performance benchmarking (< 1ms per operation)
+- Throughput measurement (> 1000 msg/s)
+- Certification criteria validation
+- Error handling robustness
+- Compatibility matrix verification
+
 ### test_provisional_charge_lifecycle.py
 
 Tests for provisional charge event creation and expiration.
