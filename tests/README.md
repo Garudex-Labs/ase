@@ -49,6 +49,58 @@ Tests for final charge creation and reconciliation with provisional charges.
 - Status transitions after reconciliation
 - JSON serialization compatibility
 
+### test_delegation_token_validation.py
+
+Tests for delegation token validation and hierarchical delegation support.
+
+**Properties Tested**:
+- **Property 7: Delegation Token Validation** - Validates cryptographic signatures and spending limits
+- **Property 9: Hierarchical Delegation Support** - Validates delegation chains and constraint inheritance
+
+**Requirements Validated**: 4.3, 4.5
+
+**Test Coverage**:
+- JWT token structure validation (header, payload, signature)
+- Cryptographic algorithm validation (ES256, RS256)
+- Required claims validation (iss, sub, aud, exp, iat, jti, spendingLimit)
+- Spending limit format and positivity validation
+- Token expiration and lifetime validation
+- Allowed operations validation and uniqueness
+- Delegation depth constraints (0-5 levels)
+- Parent-child relationship validation
+- Delegation chain tracking and integrity
+- Spending limit monotonic decrease through chain
+- Currency consistency through chain
+- Operation restriction inheritance (child ⊆ parent)
+- Issuer-subject delegation flow validation
+- JSON serialization compatibility
+
+### test_delegation_limit_enforcement.py
+
+Tests for delegation limit enforcement and token expiration handling.
+
+**Properties Tested**:
+- **Property 8: Delegation Limit Enforcement** - Validates spending limit enforcement and transaction rejection
+- **Property 10: Delegation Token Expiration Handling** - Validates expired token rejection and cleanup
+
+**Requirements Validated**: 4.4, 4.6
+
+**Test Coverage**:
+- Spending limit enforcement (within/exceeding available amount)
+- Spending invariant validation (limit = spent + reserved + available)
+- Currency consistency enforcement
+- Error information completeness
+- Cumulative spending tracking across multiple transactions
+- Token expiration detection and validation
+- Expired token transaction rejection
+- Reserved amount release on expiration
+- Operation authorization enforcement
+- Spending reservation timeout handling
+- Hierarchical spending limit validation (parent-child)
+- Expiration warning threshold detection
+- Concurrent transaction race condition prevention
+- Atomic spending reservation validation
+
 ## Running Tests
 
 ### Prerequisites
