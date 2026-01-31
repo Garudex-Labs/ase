@@ -2,61 +2,92 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://ase-protocol.org/schemas/charge-event.schema.json",
   "title": "Charge Event",
-  "description": "Provisional or final charge event",
+  "description": "Provisional or final charge event for budget reservation and consumption tracking",
   "type": "object",
   "required": ["eventId", "eventType", "timestamp", "agentId", "amount", "description", "status"],
   "properties": {
     "eventId": {
       "type": "string",
-      "description": "Unique event identifier",
+      "description": "Unique event identifier (format: evt_prov_* or evt_final_*)",
       "minLength": 1,
-      "maxLength": 255
+      "maxLength": 255,
+      "pattern": "^evt_(prov|final|adj|ref)_[a-zA-Z0-9_-]+$"
     },
     "eventType": {
       "type": "string",
-      "description": "Event type",
+      "description": "Event type: provisional (budget reservation), final (actual consumption), adjustment (modification), refund (return)",
       "enum": ["provisional", "final", "adjustment", "refund"]
     },
     "timestamp": {
       "type": "string",
-      "description": "ISO 8601 timestamp",
+      "description": "ISO 8601 timestamp when the charge was created",
       "format": "date-time"
     },
     "agentId": {
       "type": "string",
-      "description": "Charged agent identifier",
+      "description": "Identifier of the agent being charged",
       "minLength": 1,
       "maxLength": 255
     },
     "amount": {
-      "$ref": "monetary-amount.schema.json#"
+      "$ref": "monetary-amount.schema.json#",
+      "description": "Monetary amount for the charge"
     },
     "description": {
       "type": "string",
-      "description": "Charge description",
+      "description": "Human-readable description of the charge",
       "minLength": 1,
       "maxLength": 1000
     },
     "provisionalChargeId": {
       "type": "string",
-      "description": "Reference to provisional charge (for final charges)",
+      "description": "Reference to provisional charge (required for final charges with reconciliation)",
       "minLength": 1,
-      "maxLength": 255
+      "maxLength": 255,
+      "pattern": "^evt_prov_[a-zA-Z0-9_-]+$"
     },
     "expiresAt": {
       "type": "string",
-      "description": "Expiration time (provisional charges only)",
+      "description": "Expiration time for provisional charges (must be 1 minute to 24 hours in the future)",
       "format": "date-time"
     },
     "status": {
       "type": "string",
-      "description": "Charge status",
-      "enum": ["pending", "reserved", "confirmed", "expired", "disputed", "refunded"]
+      "description": "Current status of the charge in its lifecycle",
+      "enum": ["pending", "reserved", "confirmed", "expired", "cancelled", "disputed", "refunded"]
     },
     "metadata": {
       "type": "object",
-      "description": "Optional additional metadata",
-      "additionalProperties": true
+      "description": "Optional additional metadata for context-specific information",
+      "additionalProperties": true,
+      "properties": {
+        "resourceType": {
+          "type": "string",
+          "description": "Type of resource (e.g., compute, storage, network)"
+        },
+        "estimatedUnits": {
+          "type": "number",
+          "description": "Estimated resource units (for provisional charges)"
+        },
+        "actualUnits": {
+          "type": "number",
+          "description": "Actual resource units consumed (for final charges)"
+        },
+        "priority": {
+          "type": "string",
+          "description": "Priority level for resource allocation",
+          "enum": ["low", "normal", "high", "critical"]
+        },
+        "correlationId": {
+          "type": "string",
+          "description": "External transaction or request identifier"
+        },
+        "completionTime": {
+          "type": "string",
+          "description": "When resource consumption completed",
+          "format": "date-time"
+        }
+      }
     }
   },
   "additionalProperties": false,
@@ -70,7 +101,28 @@
         }
       },
       "then": {
-        "required": ["expiresAt"]
+        "required": ["expiresAt"],
+        "properties": {
+          "status": {
+            "enum": ["pending", "reserved", "confirmed", "expired", "cancelled"]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "eventType": {
+            "const": "final"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "status": {
+            "enum": ["pending", "confirmed", "disputed", "refunded"]
+          }
+        }
       }
     }
   ]
