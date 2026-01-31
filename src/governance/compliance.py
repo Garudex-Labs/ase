@@ -13,7 +13,7 @@ from typing import List, Optional, Dict, Any, Tuple
 from decimal import Decimal
 
 from pydantic import Field
-from ..core.serialization import SerializableModel
+from core.serialization import SerializableModel
 
 
 class ComplianceStatus(Enum):
@@ -245,17 +245,17 @@ class ComplianceCertification(SerializableModel):
         # Update status
         self.status = self.determine_certification_status()
         
-        if self.status == ComplianceStatus.COMPLIANT:
+        if self.status == ComplianceStatus.COMPLIANT.value:
             self.certification_date = datetime.now(timezone.utc)
             self.expiration_date = self.certification_date + timedelta(days=validity_days)
             return True, None
-        elif self.status == ComplianceStatus.CONDITIONALLY_COMPLIANT:
+        elif self.status == ComplianceStatus.CONDITIONALLY_COMPLIANT.value:
             return False, "Implementation is only compliant at a lower level"
-        elif self.status == ComplianceStatus.NON_COMPLIANT:
+        elif self.status == ComplianceStatus.NON_COMPLIANT.value:
             is_compliant, failed_tests = self.validate_compliance_for_level(self.compliance_level)
             return False, f"Failed tests: {', '.join(failed_tests)}"
         else:
-            return False, f"Cannot certify with status: {self.status.value}"
+            return False, f"Cannot certify with status: {self.status}"
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert certification to dictionary for serialization."""
@@ -339,8 +339,8 @@ class ComplianceRegistry:
             Tuple of (registered, error_message)
         """
         # Validate certification status
-        if certification.status != ComplianceStatus.COMPLIANT:
-            return False, f"Cannot register non-compliant implementation (status: {certification.status.value})"
+        if certification.status != ComplianceStatus.COMPLIANT.value:
+            return False, f"Cannot register non-compliant implementation (status: {certification.status})"
         
         # Create registry entry
         entry_key = f"{certification.implementation_name}:{certification.implementation_version}"

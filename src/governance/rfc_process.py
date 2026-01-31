@@ -13,7 +13,7 @@ from typing import List, Optional, Dict, Any, Tuple
 from decimal import Decimal
 
 from pydantic import Field
-from ..core.serialization import SerializableModel
+from core.serialization import SerializableModel
 
 
 class RFCStatus(Enum):
@@ -128,10 +128,10 @@ class RFCProposal(SerializableModel):
         """Check if this RFC requires a proof-of-concept."""
         # Categories that require POC
         poc_categories = {
-            RFCCategory.PROTOCOL_EXTENSION,
-            RFCCategory.SCHEMA_CHANGE,
-            RFCCategory.SECURITY_ENHANCEMENT,
-            RFCCategory.BACKWARD_COMPATIBILITY
+            RFCCategory.PROTOCOL_EXTENSION.value,
+            RFCCategory.SCHEMA_CHANGE.value,
+            RFCCategory.SECURITY_ENHANCEMENT.value,
+            RFCCategory.BACKWARD_COMPATIBILITY.value
         }
         return self.category in poc_categories
     
@@ -145,8 +145,8 @@ class RFCProposal(SerializableModel):
         issues = []
         
         # Check status
-        if self.status not in [RFCStatus.UNDER_REVIEW, RFCStatus.POC_COMPLETED]:
-            issues.append(f"RFC must be under review or have completed POC, current status: {self.status.value}")
+        if self.status not in [RFCStatus.UNDER_REVIEW.value, RFCStatus.POC_COMPLETED.value]:
+            issues.append(f"RFC must be under review or have completed POC, current status: {self.status}")
         
         # Check POC requirement
         if self.requires_poc():

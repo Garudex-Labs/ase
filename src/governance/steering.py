@@ -7,7 +7,7 @@ Defines the committee structure and oversight mechanisms for the ASE protocol.
 from typing import List, Optional
 from datetime import datetime, timezone
 from pydantic import Field
-from ..core.serialization import SerializableModel
+from core.serialization import SerializableModel
 
 
 class CommitteeMember(SerializableModel):

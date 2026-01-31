@@ -16,7 +16,7 @@ from .base import (
     MessageTransformer,
     ConventionValidator,
 )
-from ..core.models import EconomicMetadata, ChargeEvent, MonetaryAmount
+from core.models import EconomicMetadata, ChargeEvent, MonetaryAmount
 
 
 class AutoGPTMessageTransformer(MessageTransformer):

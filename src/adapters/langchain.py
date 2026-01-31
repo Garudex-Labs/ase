@@ -16,7 +16,7 @@ from .base import (
     MessageTransformer,
     ConventionValidator,
 )
-from ..core.models import EconomicMetadata, ChargeEvent, MonetaryAmount
+from core.models import EconomicMetadata, ChargeEvent, MonetaryAmount
 
 
 class LangChainMessageTransformer(MessageTransformer):
@@ -65,17 +65,29 @@ class LangChainConventionValidator(ConventionValidator):
         """Validate LangChain message structure."""
         errors = []
         
+        # Helper to check attribute existence
+        def has_attr(obj, attr):
+            if isinstance(obj, dict):
+                return attr in obj
+            return hasattr(obj, attr)
+            
+        def get_attr(obj, attr):
+            if isinstance(obj, dict):
+                return obj.get(attr)
+            return getattr(obj, attr)
+        
         # Check for required attributes
-        if not hasattr(message, "content"):
+        if not has_attr(message, "content"):
             errors.append("Message missing 'content' attribute")
         
-        if not hasattr(message, "type"):
+        if not has_attr(message, "type"):
             errors.append("Message missing 'type' attribute")
         
         # Validate type
         valid_types = ["human", "ai", "system", "function", "tool"]
-        if hasattr(message, "type") and message.type not in valid_types:
-            errors.append(f"Invalid message type: {message.type}")
+        msg_type = get_attr(message, "type")
+        if has_attr(message, "type") and msg_type not in valid_types:
+            errors.append(f"Invalid message type: {msg_type}")
         
         return (len(errors) == 0, errors)
     
@@ -83,10 +95,15 @@ class LangChainConventionValidator(ConventionValidator):
         """Validate metadata placement in LangChain message."""
         errors = []
         
+        # Helper to get attribute
+        def get_attr(obj, attr, default=None):
+            if isinstance(obj, dict):
+                return obj.get(attr, default)
+            return getattr(obj, attr, default)
+        
         # LangChain uses additional_kwargs for metadata
-        if hasattr(message, "additional_kwargs"):
-            additional_kwargs = message.additional_kwargs
-            
+        additional_kwargs = get_attr(message, "additional_kwargs")
+        if additional_kwargs:
             # Check if ASE metadata is properly nested
             if "aseMetadata" in additional_kwargs:
                 ase_metadata = additional_kwargs["aseMetadata"]
@@ -139,11 +156,18 @@ class LangChainAdapter(FrameworkAdapter):
         Places metadata in additional_kwargs following LangChain conventions.
         """
         try:
+            # Helper to get attribute or element
+            def get_attr(obj, attr, default=None):
+                if isinstance(obj, dict):
+                    return obj.get(attr, default)
+                return getattr(obj, attr, default)
+            
             # Get or create additional_kwargs
-            if hasattr(message, "additional_kwargs"):
+            additional_kwargs = {}
+            if isinstance(message, dict):
+                additional_kwargs = message.get("additional_kwargs", {}).copy()
+            elif hasattr(message, "additional_kwargs"):
                 additional_kwargs = message.additional_kwargs.copy()
-            else:
-                additional_kwargs = {}
             
             # Add ASE metadata
             if economic_metadata:
@@ -156,8 +180,8 @@ class LangChainAdapter(FrameworkAdapter):
             # Note: Actual implementation depends on LangChain version
             # This is a simplified representation
             message_dict = {
-                "content": getattr(message, "content", ""),
-                "type": getattr(message, "type", "human"),
+                "content": get_attr(message, "content", ""),
+                "type": get_attr(message, "type", "human"),
                 "additional_kwargs": additional_kwargs,
             }
             

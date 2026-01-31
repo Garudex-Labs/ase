@@ -12,10 +12,6 @@ from typing import Dict, Any, List
 import hypothesis.strategies as st
 from hypothesis import given, settings, assume
 
-import sys
-import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
-
 from governance.rfc_process import (
     RFCProposal,
     RFCStatus,
