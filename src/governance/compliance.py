@@ -7,11 +7,13 @@ and implementation tracking mechanisms.
 Validates: Requirements 10.2, 10.5, 10.6
 """
 
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from enum import Enum
 from typing import List, Optional, Dict, Any, Tuple
 from decimal import Decimal
+
+from pydantic import Field
+from ..core.serialization import SerializableModel
 
 
 class ComplianceStatus(Enum):
@@ -48,32 +50,29 @@ class TestCategory(Enum):
     PERFORMANCE = "performance"
 
 
-@dataclass
-class ComplianceTest:
+class ComplianceTest(SerializableModel):
     """
     Individual compliance test specification.
-    
-    Defines a single test that must pass for compliance certification.
     """
-    test_id: str
-    test_name: str
+    test_id: str = Field(..., alias="testId")
+    test_name: str = Field(..., alias="testName")
     category: TestCategory
     description: str
-    required_for_levels: List[ComplianceLevel]
+    required_for_levels: List[ComplianceLevel] = Field(..., alias="requiredForLevels")
     
     # Test execution
-    test_function: Optional[str] = None  # Reference to test function
-    test_file: Optional[str] = None  # Test file path
+    test_function: Optional[str] = Field(None, alias="testFunction")
+    test_file: Optional[str] = Field(None, alias="testFile")
     
     # Test results
     passed: Optional[bool] = None
-    execution_time: Optional[float] = None  # Seconds
-    error_message: Optional[str] = None
-    executed_at: Optional[datetime] = None
+    execution_time: Optional[float] = Field(None, alias="executionTime")
+    error_message: Optional[str] = Field(None, alias="errorMessage")
+    executed_at: Optional[datetime] = Field(None, alias="executedAt")
     
     # Metadata
-    property_reference: Optional[str] = None  # Reference to design property
-    requirement_reference: Optional[str] = None  # Reference to requirement
+    property_reference: Optional[str] = Field(None, alias="propertyReference")
+    requirement_reference: Optional[str] = Field(None, alias="requirementReference")
     
     def execute_test(self) -> Tuple[bool, Optional[str]]:
         """
@@ -116,39 +115,35 @@ class ComplianceTest:
         }
 
 
-@dataclass
-class ComplianceCertification:
+class ComplianceCertification(SerializableModel):
     """
     Compliance certification for an ASE implementation.
-    
-    Tracks compliance test results and certification status for a specific
-    implementation of the ASE protocol.
     """
-    certification_id: str
-    implementation_name: str
-    implementation_version: str
+    certification_id: str = Field(..., alias="certificationId")
+    implementation_name: str = Field(..., alias="implementationName")
+    implementation_version: str = Field(..., alias="implementationVersion")
     vendor: str
-    vendor_contact: str
+    vendor_contact: str = Field(..., alias="vendorContact")
     
     # Certification details
-    ase_version: str  # ASE protocol version
-    compliance_level: ComplianceLevel
+    ase_version: str = Field(..., alias="aseVersion")
+    compliance_level: ComplianceLevel = Field(..., alias="complianceLevel")
     status: ComplianceStatus
     
     # Test results
-    tests: List[ComplianceTest] = field(default_factory=list)
-    total_tests: int = 0
-    passed_tests: int = 0
-    failed_tests: int = 0
+    tests: List[ComplianceTest] = []
+    total_tests: int = Field(0, alias="totalTests")
+    passed_tests: int = Field(0, alias="passedTests")
+    failed_tests: int = Field(0, alias="failedTests")
     
     # Certification lifecycle
-    certification_date: Optional[datetime] = None
-    expiration_date: Optional[datetime] = None
-    last_tested: Optional[datetime] = None
+    certification_date: Optional[datetime] = Field(None, alias="certificationDate")
+    expiration_date: Optional[datetime] = Field(None, alias="expirationDate")
+    last_tested: Optional[datetime] = Field(None, alias="lastTested")
     
     # Metadata
-    test_environment: Optional[str] = None
-    test_framework: Optional[str] = None
+    test_environment: Optional[str] = Field(None, alias="testEnvironment")
+    test_framework: Optional[str] = Field(None, alias="testFramework")
     notes: Optional[str] = None
     
     def add_test(self, test: ComplianceTest):
@@ -287,19 +282,18 @@ class ComplianceCertification:
         }
 
 
-@dataclass
-class ComplianceRegistryEntry:
+class ComplianceRegistryEntry(SerializableModel):
     """Entry in the compliance registry."""
-    implementation_name: str
-    implementation_version: str
+    implementation_name: str = Field(..., alias="implementationName")
+    implementation_version: str = Field(..., alias="implementationVersion")
     vendor: str
-    ase_version: str
-    compliance_level: ComplianceLevel
+    ase_version: str = Field(..., alias="aseVersion")
+    compliance_level: ComplianceLevel = Field(..., alias="complianceLevel")
     status: ComplianceStatus
-    certification_id: str
-    certification_date: Optional[datetime]
-    expiration_date: Optional[datetime]
-    registry_url: Optional[str] = None
+    certification_id: str = Field(..., alias="certificationId")
+    certification_date: Optional[datetime] = Field(None, alias="certificationDate")
+    expiration_date: Optional[datetime] = Field(None, alias="expirationDate")
+    registry_url: Optional[str] = Field(None, alias="registryUrl")
     
     def is_valid(self) -> bool:
         """Check if certification is currently valid."""

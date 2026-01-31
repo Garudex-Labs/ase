@@ -7,11 +7,13 @@ for ASE protocol changes, including proof-of-concept requirements.
 Validates: Requirements 10.1, 10.4
 """
 
-from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from typing import List, Optional, Dict, Any, Tuple
 from decimal import Decimal
+
+from pydantic import Field
+from ..core.serialization import SerializableModel
 
 
 class RFCStatus(Enum):
@@ -39,24 +41,20 @@ class RFCCategory(Enum):
     DOCUMENTATION = "documentation"
 
 
-@dataclass
-class ProofOfConceptRequirement:
+class ProofOfConceptRequirement(SerializableModel):
     """
     Proof-of-concept requirement for RFC proposals.
-    
-    All RFCs that modify protocol behavior, schemas, or security mechanisms
-    must include a working proof-of-concept implementation.
     """
     required: bool
     description: str
-    acceptance_criteria: List[str]
-    implementation_language: Optional[str] = None
-    repository_url: Optional[str] = None
-    demo_url: Optional[str] = None
-    test_results_url: Optional[str] = None
+    acceptance_criteria: List[str] = Field(..., alias="acceptanceCriteria")
+    implementation_language: Optional[str] = Field(None, alias="implementationLanguage")
+    repository_url: Optional[str] = Field(None, alias="repositoryUrl")
+    demo_url: Optional[str] = Field(None, alias="demoUrl")
+    test_results_url: Optional[str] = Field(None, alias="testResultsUrl")
     completed: bool = False
-    completion_date: Optional[datetime] = None
-    reviewer_notes: Optional[str] = None
+    completion_date: Optional[datetime] = Field(None, alias="completionDate")
+    reviewer_notes: Optional[str] = Field(None, alias="reviewerNotes")
     
     def validate_completion(self) -> Tuple[bool, List[str]]:
         """
@@ -88,47 +86,43 @@ class ProofOfConceptRequirement:
         return len(errors) == 0, errors
 
 
-@dataclass
-class RFCProposal:
+class RFCProposal(SerializableModel):
     """
     RFC proposal for ASE protocol changes.
-    
-    Defines the structure and lifecycle of protocol change proposals,
-    including review, approval, and implementation tracking.
     """
-    rfc_id: str
+    rfc_id: str = Field(..., alias="rfcId")
     title: str
     author: str
-    author_email: str
+    author_email: str = Field(..., alias="authorEmail")
     category: RFCCategory
     status: RFCStatus
-    created_at: datetime
-    updated_at: datetime
+    created_at: datetime = Field(..., alias="createdAt")
+    updated_at: datetime = Field(..., alias="updatedAt")
     
     # Proposal content
     abstract: str
     motivation: str
     specification: str
-    backward_compatibility: str
-    security_considerations: str
+    backward_compatibility: str = Field(..., alias="backwardCompatibility")
+    security_considerations: str = Field(..., alias="securityConsiderations")
     
     # Proof-of-concept
-    poc_requirement: ProofOfConceptRequirement
+    poc_requirement: ProofOfConceptRequirement = Field(..., alias="pocRequirement")
     
     # Review process
-    reviewers: List[str] = field(default_factory=list)
-    review_comments: List[Dict[str, Any]] = field(default_factory=list)
-    approval_votes: Dict[str, bool] = field(default_factory=dict)
+    reviewers: List[str] = []
+    review_comments: List[Dict[str, Any]] = Field([], alias="reviewComments")
+    approval_votes: Dict[str, bool] = Field({}, alias="approvalVotes")
     
     # Implementation tracking
-    target_version: Optional[str] = None
-    implementation_pr: Optional[str] = None
-    implemented_at: Optional[datetime] = None
+    target_version: Optional[str] = Field(None, alias="targetVersion")
+    implementation_pr: Optional[str] = Field(None, alias="implementationPr")
+    implemented_at: Optional[datetime] = Field(None, alias="implementedAt")
     
     # Metadata
-    related_rfcs: List[str] = field(default_factory=list)
+    related_rfcs: List[str] = Field([], alias="relatedRfcs")
     supersedes: Optional[str] = None
-    superseded_by: Optional[str] = None
+    superseded_by: Optional[str] = Field(None, alias="supersededBy")
     
     def requires_poc(self) -> bool:
         """Check if this RFC requires a proof-of-concept."""

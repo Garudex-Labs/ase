@@ -6,16 +6,21 @@ Implements JWT-based delegation token creation and validation.
 
 import json
 import base64
+import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 from decimal import Decimal
+from collections import defaultdict
 
 from .signing import SigningService, VerificationService, SignatureAlgorithm
 
 
-@dataclass
-class TokenClaims:
+from .serialization import SerializableModel
+from pydantic import Field
+
+
+class TokenClaims(SerializableModel):
     """Standard and ASE-specific JWT claims for delegation tokens."""
     # Standard JWT claims
     iss: str  # Issuer (delegating agent ID)
@@ -26,52 +31,17 @@ class TokenClaims:
     jti: str  # Unique token ID
     
     # ASE-specific claims
-    spending_limit: Dict[str, Any]  # {"value": "100.00", "currency": "USD"}
-    allowed_operations: List[str]
-    max_delegation_depth: int
-    budget_category: str
+    spending_limit: Dict[str, Any] = Field(..., alias="spendingLimit")  # {"value": "100.00", "currency": "USD"}
+    allowed_operations: List[str] = Field(..., alias="allowedOperations")
+    max_delegation_depth: int = Field(..., alias="maxDelegationDepth")
+    budget_category: str = Field(..., alias="budgetCategory")
     
     # Optional claims
     nbf: Optional[int] = None  # Not before timestamp
-    parent_token_id: Optional[str] = None  # For hierarchical delegation
+    parent_token_id: Optional[str] = Field(None, alias="parentTokenId")  # For hierarchical delegation
     
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary for JWT payload."""
-        result = {
-            "iss": self.iss,
-            "sub": self.sub,
-            "aud": self.aud,
-            "exp": self.exp,
-            "iat": self.iat,
-            "jti": self.jti,
-            "spendingLimit": self.spending_limit,
-            "allowedOperations": self.allowed_operations,
-            "maxDelegationDepth": self.max_delegation_depth,
-            "budgetCategory": self.budget_category,
-        }
-        if self.nbf is not None:
-            result["nbf"] = self.nbf
-        if self.parent_token_id is not None:
-            result["parentTokenId"] = self.parent_token_id
-        return result
-    
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "TokenClaims":
-        """Create from dictionary."""
-        return cls(
-            iss=data["iss"],
-            sub=data["sub"],
-            aud=data["aud"],
-            exp=data["exp"],
-            iat=data["iat"],
-            jti=data["jti"],
-            spending_limit=data["spendingLimit"],
-            allowed_operations=data["allowedOperations"],
-            max_delegation_depth=data["maxDelegationDepth"],
-            budget_category=data["budgetCategory"],
-            nbf=data.get("nbf"),
-            parent_token_id=data.get("parentTokenId"),
-        )
+    # Note: SerializableModel already provides to_dict(), from_dict(), to_json(), from_json()
+
 
 
 class TokenError(Exception):
@@ -92,6 +62,53 @@ class TokenVerificationError(TokenError):
 class TokenExpiredError(TokenError):
     """Raised when token has expired."""
     pass
+
+
+class RateLimitExceededError(TokenError):
+    """Raised when rate limit is exceeded."""
+    def __init__(self, message: str, retry_after: int):
+        super().__init__(message)
+        self.retry_after = retry_after
+
+
+class SimpleRateLimiter:
+    """
+    In-memory rate limiter using token bucket algorithm.
+    
+    Enforces rate limits per agent ID.
+    """
+    
+    def __init__(self, requests_per_minute: int = 100):
+        self.rate = requests_per_minute
+        self.window = 60.0  # seconds
+        # Stores [count, start_time] for each key
+        self.buckets: Dict[str, List[float]] = defaultdict(lambda: [0, time.time()])
+        
+    def check_limit(self, key: str) -> bool:
+        """
+        Check if request is allowed for key.
+        Returns True if allowed, or False if limit exceeded.
+        """
+        now = time.time()
+        bucket = self.buckets[key]
+        
+        # Reset bucket if window passed
+        if now - bucket[1] > self.window:
+            bucket[0] = 0
+            bucket[1] = now
+            
+        if bucket[0] < self.rate:
+            bucket[0] += 1
+            return True
+        
+        return False
+
+    def get_retry_after(self, key: str) -> int:
+        """Get seconds until limit reset."""
+        now = time.time()
+        bucket = self.buckets[key]
+        remaining = self.window - (now - bucket[1])
+        return max(1, int(remaining))
 
 
 class TokenSigner:
@@ -232,6 +249,7 @@ class TokenVerifier:
             verification_service: VerificationService for cryptographic operations
         """
         self.verification_service = verification_service
+        self.rate_limiter = SimpleRateLimiter(requests_per_minute=100)
     
     def verify_token(self, token: str, expected_algorithm: Optional[SignatureAlgorithm] = None,
                     validate_expiration: bool = True) -> TokenClaims:
@@ -249,13 +267,35 @@ class TokenVerifier:
         Raises:
             TokenVerificationError: If token is invalid
             TokenExpiredError: If token has expired
+            RateLimitExceededError: If rate limit is exceeded
         """
         try:
-            # Parse JWT
+            # Parse JWT preliminary to get issuer for rate limiting (unsafe parse)
             parts = token.split('.')
             if len(parts) != 3:
                 raise TokenVerificationError("Invalid JWT format")
             
+            payload_b64 = parts[1]
+            try:
+                # We need to decode payload to get issuer for rate limiting
+                # NOTE: This is done BEFORE signature verification, so we must be careful.
+                # Rate limiting is based on the claimed issuer.
+                payload_json = self._base64url_decode(payload_b64)
+                payload = json.loads(payload_json)
+                issuer = payload.get("iss", "unknown")
+                
+                # Check rate limit
+                if not self.rate_limiter.check_limit(issuer):
+                    retry_after = self.rate_limiter.get_retry_after(issuer)
+                    raise RateLimitExceededError(
+                        f"Rate limit exceeded for agent {issuer}",
+                        retry_after=retry_after
+                    )
+            except (json.JSONDecodeError, UnicodeDecodeError):
+                 # If we can't parse payload, strict validation below will catch it.
+                 # We can fall back to a global rate limit key or just proceed to fail validation.
+                 pass
+
             header_b64, payload_b64, signature_b64 = parts
             
             # Decode header and payload
@@ -305,11 +345,13 @@ class TokenVerifier:
             raise
         except TokenVerificationError:
             raise
+        except RateLimitExceededError:
+            raise
         except Exception as e:
             raise TokenVerificationError(f"Token verification failed: {e}") from e
     
     def validate_spending_limit(self, claims: TokenClaims, requested_amount: Decimal,
-                               requested_currency: str) -> bool:
+                                requested_currency: str) -> bool:
         """
         Validate that requested amount is within spending limit.
         

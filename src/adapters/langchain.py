@@ -16,6 +16,7 @@ from .base import (
     MessageTransformer,
     ConventionValidator,
 )
+from ..core.models import EconomicMetadata, ChargeEvent, MonetaryAmount
 
 
 class LangChainMessageTransformer(MessageTransformer):
@@ -262,22 +263,26 @@ class LangChainAdapter(FrameworkAdapter):
         event_id_prefix = "evt_prov_" if event_type == "provisional" else "evt_final_"
         event_id = f"{event_id_prefix}{uuid.uuid4().hex[:16]}"
         
-        charge_event = {
-            "eventId": event_id,
-            "eventType": event_type,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "agentId": agent_id,
-            "amount": amount,
-            "description": description,
-            "status": "pending" if event_type == "provisional" else "confirmed",
-        }
+        # Validate amount structure using MonetaryAmount model
+        monetary_amount = MonetaryAmount(value=amount["value"], currency=amount["currency"])
         
-        if metadata:
-            charge_event["metadata"] = metadata
+        charge_event = ChargeEvent(
+            event_id=event_id,
+            event_type=event_type,
+            timestamp=datetime.now(timezone.utc),
+            agent_id=agent_id,
+            amount=monetary_amount,
+            description=description,
+            status="pending" if event_type == "provisional" else "confirmed",
+            metadata=metadata
+        )
         
-        self.execute_hooks("charge_event_created", charge_event)
+        # Serialize to dict (camelCase)
+        charge_dict = charge_event.to_dict()
         
-        return charge_event
+        self.execute_hooks("charge_event_created", charge_dict)
+        
+        return charge_dict
     
     def validate_framework_conventions(self, message: Any) -> bool:
         """
