@@ -1,0 +1,44 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ase-protocol.org/schemas/agent-identity.schema.json",
+  "title": "Agent Identity",
+  "description": "Agent identification for cost attribution and authorization",
+  "type": "object",
+  "required": ["agentId", "agentType"],
+  "properties": {
+    "agentId": {
+      "type": "string",
+      "description": "Unique agent identifier",
+      "minLength": 1,
+      "maxLength": 255
+    },
+    "agentType": {
+      "type": "string",
+      "description": "Agent classification",
+      "enum": ["autonomous", "human_delegated", "service", "composite"]
+    },
+    "organizationId": {
+      "type": "string",
+      "description": "Optional organization context",
+      "minLength": 1,
+      "maxLength": 255
+    },
+    "settlementAccount": {
+      "type": "string",
+      "description": "Optional settlement account reference",
+      "minLength": 1,
+      "maxLength": 255
+    },
+    "publicKey": {
+      "type": "string",
+      "description": "Optional PEM-encoded public key for verification",
+      "pattern": "^-----BEGIN PUBLIC KEY-----"
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Optional additional metadata",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}

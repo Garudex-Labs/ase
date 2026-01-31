@@ -1,0 +1,25 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ase-protocol.org/schemas/ase-metadata.schema.json",
+  "title": "ASE Metadata",
+  "description": "Top-level ASE economic metadata container",
+  "type": "object",
+  "required": ["version", "economicData"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "ASE protocol version",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "examples": ["1.0.0", "1.1.0", "2.0.0"]
+    },
+    "economicData": {
+      "$ref": "economic-data.schema.json#"
+    },
+    "signature": {
+      "type": "string",
+      "description": "Optional cryptographic signature (base64-encoded)",
+      "contentEncoding": "base64"
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,77 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ase-protocol.org/schemas/charge-event.schema.json",
+  "title": "Charge Event",
+  "description": "Provisional or final charge event",
+  "type": "object",
+  "required": ["eventId", "eventType", "timestamp", "agentId", "amount", "description", "status"],
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "description": "Unique event identifier",
+      "minLength": 1,
+      "maxLength": 255
+    },
+    "eventType": {
+      "type": "string",
+      "description": "Event type",
+      "enum": ["provisional", "final", "adjustment", "refund"]
+    },
+    "timestamp": {
+      "type": "string",
+      "description": "ISO 8601 timestamp",
+      "format": "date-time"
+    },
+    "agentId": {
+      "type": "string",
+      "description": "Charged agent identifier",
+      "minLength": 1,
+      "maxLength": 255
+    },
+    "amount": {
+      "$ref": "monetary-amount.schema.json#"
+    },
+    "description": {
+      "type": "string",
+      "description": "Charge description",
+      "minLength": 1,
+      "maxLength": 1000
+    },
+    "provisionalChargeId": {
+      "type": "string",
+      "description": "Reference to provisional charge (for final charges)",
+      "minLength": 1,
+      "maxLength": 255
+    },
+    "expiresAt": {
+      "type": "string",
+      "description": "Expiration time (provisional charges only)",
+      "format": "date-time"
+    },
+    "status": {
+      "type": "string",
+      "description": "Charge status",
+      "enum": ["pending", "reserved", "confirmed", "expired", "disputed", "refunded"]
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Optional additional metadata",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "eventType": {
+            "const": "provisional"
+          }
+        }
+      },
+      "then": {
+        "required": ["expiresAt"]
+      }
+    }
+  ]
+}

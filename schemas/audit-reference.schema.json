@@ -1,0 +1,48 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ase-protocol.org/schemas/audit-reference.schema.json",
+  "title": "Audit Reference",
+  "description": "Reference to audit bundle for compliance",
+  "type": "object",
+  "required": ["auditBundleId", "transactionId", "timestamp", "signature", "signatureAlgorithm"],
+  "properties": {
+    "auditBundleId": {
+      "type": "string",
+      "description": "Audit bundle identifier",
+      "minLength": 1,
+      "maxLength": 255
+    },
+    "bundleUri": {
+      "type": "string",
+      "description": "Optional URI to retrieve bundle",
+      "format": "uri"
+    },
+    "transactionId": {
+      "type": "string",
+      "description": "Transaction identifier",
+      "minLength": 1,
+      "maxLength": 255
+    },
+    "timestamp": {
+      "type": "string",
+      "description": "ISO 8601 timestamp",
+      "format": "date-time"
+    },
+    "signature": {
+      "type": "string",
+      "description": "Cryptographic signature (base64-encoded)",
+      "contentEncoding": "base64"
+    },
+    "signatureAlgorithm": {
+      "type": "string",
+      "description": "Signature algorithm used",
+      "enum": ["ES256", "RS256"]
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Optional additional metadata",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}
