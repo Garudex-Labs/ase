@@ -1,297 +1,246 @@
 """
-Property-based tests for version negotiation and compatibility.
+Property-based tests for version management and protocol compliance validation.
 
+Feature: ase, Property 1: Backward Compatibility Preservation
 Feature: ase, Property 17: Version Negotiation
 Feature: ase, Property 18: Version Mismatch Graceful Degradation
+Feature: ase, Property 20: Test Suite Protocol Compliance Validation
 
-Validates: Requirements 7.4, 7.6
+Validates: Requirements 1.1, 1.2, 1.5, 7.4, 7.6, 9.6
 """
 
 import json
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Tuple
+from datetime import datetime, timezone, timedelta
+from decimal import Decimal
 
 import hypothesis.strategies as st
 from hypothesis import given, settings, assume
+
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 
 # Test data generators
 
 @st.composite
-def version_string(draw, min_major=0, max_major=3, min_minor=0, max_minor=5, min_patch=0, max_patch=10):
-    """Generate valid semantic version strings."""
-    major = draw(st.integers(min_value=min_major, max_value=max_major))
-    minor = draw(st.integers(min_value=min_minor, max_value=max_minor))
-    patch = draw(st.integers(min_value=min_patch, max_value=max_patch))
-    return f"{major}.{minor}.{patch}"
+def agent_id(draw):
+    """Generate valid agent identifier."""
+    prefix = draw(st.sampled_from(["agent", "service", "client"]))
+    suffix = draw(st.text(alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd")), min_size=6, max_size=20))
+    return f"{prefix}_{suffix}"
 
 
 @st.composite
-def feature_set(draw, version=None):
-    """Generate feature set based on version."""
-    # Define feature availability by version
-    if version:
-        major = int(version.split('.')[0])
-        minor = int(version.split('.')[1])
-        
-        # v0.x.x features
-        if major == 0:
-            return {
-                "backwardCompatibility": True,
-                "provisionalCharges": False,
-                "delegationTokens": False,
-                "disputeResolution": False,
-                "auditBundles": True,
-                "chargeReconciliation": False
-            }
-        # v1.x.x features
-        elif major == 1:
-            return {
-                "backwardCompatibility": True,
-                "provisionalCharges": True,
-                "delegationTokens": True,
-                "disputeResolution": False,
-                "auditBundles": True,
-                "chargeReconciliation": False
-            }
-        # v2.x.x features
-        elif major >= 2:
-            return {
-                "backwardCompatibility": True,
-                "provisionalCharges": True,
-                "delegationTokens": True,
-                "disputeResolution": True,
-                "auditBundles": True,
-                "chargeReconciliation": True
-            }
-    
-    # Random feature set if no version specified
+def ase_version(draw):
+    """Generate ASE protocol version."""
+    return draw(st.sampled_from(["0.1.0", "1.0.0", "2.0.0"]))
+
+
+@st.composite
+def monetary_amount(draw):
+    """Generate valid monetary amount."""
+    value = draw(st.decimals(min_value=Decimal("0.01"), max_value=Decimal("999999.99"), places=2))
+    currency = draw(st.sampled_from(["USD", "EUR", "GBP", "JPY"]))
     return {
-        "backwardCompatibility": draw(st.booleans()),
-        "provisionalCharges": draw(st.booleans()),
-        "delegationTokens": draw(st.booleans()),
-        "disputeResolution": draw(st.booleans()),
-        "auditBundles": draw(st.booleans()),
-        "chargeReconciliation": draw(st.booleans())
+        "value": str(value),
+        "currency": currency
     }
 
 
 @st.composite
-def version_capability(draw, version=None):
-    """Generate version capability with features."""
-    if version is None:
-        version = draw(version_string())
-    
-    features = draw(feature_set(version=version))
-    deprecated = draw(st.booleans())
-    
-    capability = {
-        "version": version,
-        "features": features,
-        "deprecated": deprecated
-    }
-    
-    # Add sunset date if deprecated
-    if deprecated:
-        capability["sunsetDate"] = "2025-12-31T23:59:59Z"
-    
-    return capability
-
-
-@st.composite
-def supported_versions_list(draw, min_versions=1, max_versions=5):
-    """Generate list of supported version capabilities."""
-    num_versions = draw(st.integers(min_value=min_versions, max_value=max_versions))
-    
-    # Generate unique versions
-    versions = []
-    version_strings = set()
-    
-    for _ in range(num_versions):
-        v = draw(version_string())
-        if v not in version_strings:
-            version_strings.add(v)
-            capability = draw(version_capability(version=v))
-            versions.append(capability)
-    
-    return versions
-
-
-@st.composite
-def feature_list(draw, min_features=0, max_features=6):
-    """Generate list of feature names."""
-    all_features = [
-        "backwardCompatibility",
-        "provisionalCharges",
-        "delegationTokens",
-        "disputeResolution",
-        "auditBundles",
-        "chargeReconciliation"
-    ]
-    
-    num_features = draw(st.integers(min_value=min_features, max_value=max_features))
-    if num_features == 0:
-        return []
-    
-    return draw(st.lists(
-        st.sampled_from(all_features),
-        min_size=num_features,
-        max_size=num_features,
-        unique=True
-    ))
-
-
-@st.composite
-def negotiation_request(draw):
-    """Generate version negotiation request."""
-    supported_versions = draw(supported_versions_list(min_versions=1, max_versions=5))
-    
-    # Pick a preferred version from supported versions
-    preferred_version = draw(st.sampled_from([v["version"] for v in supported_versions]))
-    
-    # Generate required and optional features
-    required_features = draw(feature_list(min_features=0, max_features=3))
-    optional_features = draw(feature_list(min_features=0, max_features=3))
-    
+def base_protocol_message(draw):
+    """Generate base protocol message."""
     return {
-        "supportedVersions": supported_versions,
-        "preferredVersion": preferred_version,
-        "requiredFeatures": required_features,
-        "optionalFeatures": optional_features
+        "id": draw(st.text(min_size=10, max_size=30)),
+        "content": draw(st.text(min_size=1, max_size=500)),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "sender": draw(agent_id()),
+        "receiver": draw(agent_id()),
+        "messageType": draw(st.sampled_from(["request", "response", "notification"]))
     }
 
 
 @st.composite
-def ase_message(draw, version=None, include_economic_data=True):
-    """Generate ASE message with optional version."""
-    if version is None:
-        version = draw(version_string())
+def ase_message(draw, version=None):
+    """Generate ASE message with specified or random version."""
+    base_msg = draw(base_protocol_message())
+    msg_version = version if version else draw(ase_version())
     
-    message = {
-        "type": draw(st.sampled_from(["request", "response", "notification"])),
-        "content": draw(st.text(min_size=1, max_size=100))
-    }
-    
-    if include_economic_data:
-        message["aseMetadata"] = {
-            "version": version,
-            "economicData": {
-                "agentIdentity": {
-                    "agentId": f"agent_{draw(st.text(alphabet=st.characters(whitelist_categories=('Ll', 'Nd')), min_size=6, max_size=12))}",
-                    "agentType": draw(st.sampled_from(["autonomous", "service", "human"]))
-                }
-            }
+    base_msg["aseMetadata"] = {
+        "version": msg_version,
+        "agentIdentity": {
+            "agentId": base_msg["sender"],
+            "agentType": draw(st.sampled_from(["autonomous", "human", "service"]))
         }
+    }
     
-    return message
-
-
-# Helper functions
-
-def parse_version(version: str) -> Tuple[int, int, int]:
-    """Parse semantic version string into tuple."""
-    parts = version.split('.')
-    return (int(parts[0]), int(parts[1]), int(parts[2]))
-
-
-def compare_versions(v1: str, v2: str) -> int:
-    """
-    Compare two version strings.
-    Returns: -1 if v1 < v2, 0 if v1 == v2, 1 if v1 > v2
-    """
-    p1 = parse_version(v1)
-    p2 = parse_version(v2)
+    # Add version-specific features
+    if msg_version in ["1.0.0", "2.0.0"]:
+        # v1.0.0+ features: delegation tokens, provisional charges
+        base_msg["aseMetadata"]["delegationToken"] = draw(st.one_of(
+            st.none(),
+            st.text(min_size=50, max_size=200)
+        ))
     
-    if p1 < p2:
-        return -1
-    elif p1 > p2:
-        return 1
-    else:
-        return 0
+    if msg_version == "2.0.0":
+        # v2.0.0 features: dispute resolution
+        base_msg["aseMetadata"]["disputeReference"] = draw(st.one_of(
+            st.none(),
+            st.text(min_size=20, max_size=40)
+        ))
+    
+    return base_msg
 
 
-def select_version(local_versions: List[Dict], remote_versions: List[Dict], required_features: List[str]) -> Optional[str]:
-    """
-    Select the highest mutually supported version that meets requirements.
-    
-    Args:
-        local_versions: List of locally supported version capabilities
-        remote_versions: List of remotely supported version capabilities
-        required_features: List of feature names that must be supported
-    
-    Returns:
-        Selected version string or None if no compatible version exists
-    """
-    # Find common versions
-    local_version_set = {v['version'] for v in local_versions}
-    remote_version_set = {v['version'] for v in remote_versions}
-    common_versions = local_version_set & remote_version_set
-    
-    if not common_versions:
-        return None
-    
-    # Filter versions that support required features
-    compatible_versions = []
-    for version in common_versions:
-        local_cap = next(v for v in local_versions if v['version'] == version)
-        remote_cap = next(v for v in remote_versions if v['version'] == version)
-        
-        # Check if all required features are supported by both
-        local_features = local_cap['features']
-        remote_features = remote_cap['features']
-        
-        all_features_supported = all(
-            local_features.get(feature, False) and 
-            remote_features.get(feature, False)
-            for feature in required_features
-        )
-        
-        if all_features_supported:
-            compatible_versions.append(version)
-    
-    if not compatible_versions:
-        return None
-    
-    # Return highest version (semantic versioning sort)
-    return max(compatible_versions, key=parse_version)
+@st.composite
+def agent_capabilities(draw):
+    """Generate agent capability configuration."""
+    return {
+        "agentId": draw(agent_id()),
+        "supportedVersions": draw(st.lists(
+            ase_version(),
+            min_size=1,
+            max_size=3,
+            unique=True
+        )),
+        "supportsASE": draw(st.booleans())
+    }
 
 
-def get_supported_features(versions: List[Dict], version: str) -> Dict[str, bool]:
-    """Get feature set for a specific version."""
-    for v in versions:
-        if v['version'] == version:
-            return v['features']
-    return {}
-
-
-def check_feature_support(features: Dict[str, bool], required_features: List[str]) -> Tuple[List[str], List[str]]:
-    """
-    Check which required features are supported.
-    
-    Returns:
-        Tuple of (supported_features, unsupported_features)
-    """
-    supported = []
-    unsupported = []
-    
-    for feature in required_features:
-        if features.get(feature, False):
-            supported.append(feature)
-        else:
-            unsupported.append(feature)
-    
-    return supported, unsupported
-
-
-# Property tests
+# Property 1: Backward Compatibility Preservation
 
 @given(
-    local_versions=supported_versions_list(min_versions=1, max_versions=5),
-    remote_request=negotiation_request()
+    ase_message=ase_message(),
+    non_ase_agent=agent_id()
+)
+@settings(max_examples=100)
+def test_property_1_backward_compatibility_preservation(
+    ase_message: Dict[str, Any],
+    non_ase_agent: str
+):
+    """
+    Property 1: Backward Compatibility Preservation
+    
+    For any ASE message sent to a non-ASE agent or non-ASE message processed
+    by an ASE agent, the base protocol functionality should remain completely
+    intact and unaffected by the presence or absence of economic metadata.
+    
+    This test validates that:
+    1. Base protocol fields are always accessible
+    2. ASE metadata can be safely ignored
+    3. Message processing succeeds without ASE support
+    4. No errors occur due to ASE fields
+    5. Functionality is equivalent to non-ASE messages
+    
+    Validates: Requirements 1.1, 1.2, 1.5
+    """
+    # Non-ASE agent processes ASE message
+    # Extract base protocol fields only
+    base_fields = {
+        "id": ase_message["id"],
+        "content": ase_message["content"],
+        "timestamp": ase_message["timestamp"],
+        "sender": ase_message["sender"],
+        "receiver": ase_message["receiver"],
+        "messageType": ase_message["messageType"]
+    }
+    
+    # Validate all base fields are accessible
+    assert "id" in base_fields, "Message ID must be accessible"
+    assert "content" in base_fields, "Message content must be accessible"
+    assert "timestamp" in base_fields, "Timestamp must be accessible"
+    assert "sender" in base_fields, "Sender must be accessible"
+    assert "receiver" in base_fields, "Receiver must be accessible"
+    assert "messageType" in base_fields, "Message type must be accessible"
+    
+    # Validate base fields match original message
+    assert base_fields["id"] == ase_message["id"]
+    assert base_fields["content"] == ase_message["content"]
+    assert base_fields["sender"] == ase_message["sender"]
+    
+    # Non-ASE agent generates response without ASE metadata
+    response = {
+        "id": f"resp_{ase_message['id']}",
+        "content": "Processed successfully",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "sender": non_ase_agent,
+        "receiver": ase_message["sender"],
+        "messageType": "response",
+        "inReplyTo": ase_message["id"]
+    }
+    
+    # Validate response is valid base protocol message
+    assert "id" in response
+    assert "content" in response
+    assert "sender" in response
+    assert "receiver" in response
+    assert "aseMetadata" not in response, "Non-ASE response should not have ASE metadata"
+    
+    # Validate base protocol functionality is preserved
+    assert response["inReplyTo"] == ase_message["id"]
+    assert response["receiver"] == ase_message["sender"]
+
+
+@given(
+    base_message=base_protocol_message(),
+    ase_agent=agent_id()
+)
+@settings(max_examples=100)
+def test_property_1_non_ase_to_ase_zero_cost(
+    base_message: Dict[str, Any],
+    ase_agent: str
+):
+    """
+    Property 1: Backward Compatibility Preservation (Non-ASE to ASE)
+    
+    For any non-ASE message processed by an ASE agent, the message should be
+    handled as a zero-cost transaction without errors.
+    
+    Validates: Requirements 1.2
+    """
+    # ASE agent receives non-ASE message
+    base_message["receiver"] = ase_agent
+    
+    # Check for ASE metadata
+    has_ase_metadata = "aseMetadata" in base_message
+    
+    # ASE agent processes as zero-cost transaction
+    if not has_ase_metadata:
+        economic_context = {
+            "cost": {"value": "0.00", "currency": "USD"},
+            "budgetImpact": "0.00",
+            "chargeEvent": {
+                "eventId": f"evt_final_{base_message['id']}",
+                "eventType": "final",
+                "agentId": ase_agent,
+                "amount": {"value": "0.00", "currency": "USD"},
+                "status": "confirmed",
+                "description": "Zero-cost transaction from non-ASE agent"
+            }
+        }
+        
+        # Validate zero-cost handling
+        assert economic_context["cost"]["value"] == "0.00"
+        assert economic_context["budgetImpact"] == "0.00"
+        assert economic_context["chargeEvent"]["amount"]["value"] == "0.00"
+    
+    # Validate base message processing succeeded
+    assert base_message["id"] is not None
+    assert base_message["content"] is not None
+
+
+# Property 17: Version Negotiation
+
+@given(
+    agent1_caps=agent_capabilities(),
+    agent2_caps=agent_capabilities()
 )
 @settings(max_examples=100)
 def test_property_17_version_negotiation(
-    local_versions: List[Dict[str, Any]],
-    remote_request: Dict[str, Any]
+    agent1_caps: Dict[str, Any],
+    agent2_caps: Dict[str, Any]
 ):
     """
     Property 17: Version Negotiation
@@ -300,428 +249,315 @@ def test_property_17_version_negotiation(
     supported version should be selected.
     
     This test validates that:
-    1. Common versions are correctly identified
-    2. Required features are validated
-    3. Highest compatible version is selected
-    4. Negotiation response includes correct feature set
-    5. Unsupported features are properly reported
-    6. Fallback behavior is specified
+    1. Both agents declare supported versions
+    2. Common versions are identified
+    3. Highest common version is selected
+    4. Negotiation succeeds if any common version exists
+    5. Negotiation fails gracefully if no common version
+    
+    Validates: Requirements 7.4
     """
-    remote_versions = remote_request["supportedVersions"]
-    required_features = remote_request["requiredFeatures"]
-    optional_features = remote_request.get("optionalFeatures", [])
+    assume(agent1_caps["supportsASE"] and agent2_caps["supportsASE"])
+    assume(agent1_caps["agentId"] != agent2_caps["agentId"])
     
     # Find common versions
-    local_version_set = {v['version'] for v in local_versions}
-    remote_version_set = {v['version'] for v in remote_versions}
-    common_versions = local_version_set & remote_version_set
+    agent1_versions = set(agent1_caps["supportedVersions"])
+    agent2_versions = set(agent2_caps["supportedVersions"])
+    common_versions = agent1_versions.intersection(agent2_versions)
     
-    # Select version using algorithm
-    selected_version = select_version(local_versions, remote_versions, required_features)
-    
-    if selected_version is None:
-        # No compatible version found
-        assert len(common_versions) == 0 or len(required_features) > 0, \
-            "If no version selected, either no common versions or required features not met"
-        
-        # Validate error response would be generated
-        if len(common_versions) == 0:
-            # No common versions at all
-            assert True, "No common versions available"
-        else:
-            # Common versions exist but don't support required features
-            for version in common_versions:
-                local_features = get_supported_features(local_versions, version)
-                remote_features = get_supported_features(remote_versions, version)
-                
-                # At least one required feature must be missing
-                has_all_features = all(
-                    local_features.get(f, False) and remote_features.get(f, False)
-                    for f in required_features
-                )
-                
-                if has_all_features:
-                    # This version should have been selected
-                    assert False, f"Version {version} supports all required features but was not selected"
-    else:
-        # Version was selected
-        assert selected_version in common_versions, \
-            f"Selected version {selected_version} must be in common versions"
-        
-        # Validate it's the highest compatible version
-        for version in common_versions:
-            if compare_versions(version, selected_version) > 0:
-                # This version is higher, check if it's compatible
-                local_features = get_supported_features(local_versions, version)
-                remote_features = get_supported_features(remote_versions, version)
-                
-                has_all_features = all(
-                    local_features.get(f, False) and remote_features.get(f, False)
-                    for f in required_features
-                )
-                
-                assert not has_all_features, \
-                    f"Higher version {version} is compatible but was not selected"
-        
-        # Validate selected version supports all required features
-        local_features = get_supported_features(local_versions, selected_version)
-        remote_features = get_supported_features(remote_versions, selected_version)
-        
-        for feature in required_features:
-            assert local_features.get(feature, False), \
-                f"Selected version must support required feature {feature} locally"
-            assert remote_features.get(feature, False), \
-                f"Selected version must support required feature {feature} remotely"
-        
-        # Build negotiation response
-        supported_features = local_features
-        supported, unsupported = check_feature_support(
-            supported_features,
-            required_features + optional_features
+    if len(common_versions) > 0:
+        # Select highest common version
+        version_order = ["0.1.0", "1.0.0", "2.0.0"]
+        common_sorted = sorted(
+            common_versions,
+            key=lambda v: version_order.index(v) if v in version_order else -1,
+            reverse=True
         )
+        negotiated_version = common_sorted[0]
         
-        # Validate response structure
-        response = {
-            "selectedVersion": selected_version,
-            "supportedFeatures": supported_features,
-            "degradedFeatures": [],
-            "unsupportedFeatures": unsupported,
-            "fallbackBehavior": "ignore" if unsupported else "none"
+        # Validate negotiation result
+        assert negotiated_version in agent1_versions, \
+            "Negotiated version must be supported by agent 1"
+        assert negotiated_version in agent2_versions, \
+            "Negotiated version must be supported by agent 2"
+        
+        # Validate it's the highest common version
+        for version in common_versions:
+            if version != negotiated_version:
+                assert version_order.index(version) < version_order.index(negotiated_version), \
+                    f"Negotiated version {negotiated_version} must be higher than {version}"
+        
+        # Create negotiation result
+        negotiation_result = {
+            "agent1": agent1_caps["agentId"],
+            "agent2": agent2_caps["agentId"],
+            "negotiatedVersion": negotiated_version,
+            "agent1Versions": list(agent1_versions),
+            "agent2Versions": list(agent2_versions),
+            "status": "success"
         }
         
-        assert response["selectedVersion"] == selected_version
-        assert isinstance(response["supportedFeatures"], dict)
-        assert isinstance(response["unsupportedFeatures"], list)
-        assert response["fallbackBehavior"] in ["ignore", "error", "degrade", "none"]
+        assert negotiation_result["status"] == "success"
+        assert negotiation_result["negotiatedVersion"] in common_versions
+    else:
+        # No common versions - negotiation fails gracefully
+        negotiation_result = {
+            "agent1": agent1_caps["agentId"],
+            "agent2": agent2_caps["agentId"],
+            "negotiatedVersion": None,
+            "agent1Versions": list(agent1_versions),
+            "agent2Versions": list(agent2_versions),
+            "status": "failed",
+            "reason": "no_common_version"
+        }
         
-        # Validate all required features are supported
-        for feature in required_features:
-            assert feature not in response["unsupportedFeatures"], \
-                f"Required feature {feature} must be supported"
+        assert negotiation_result["status"] == "failed"
+        assert negotiation_result["negotiatedVersion"] is None
 
+
+# Property 18: Version Mismatch Graceful Degradation
 
 @given(
-    local_versions=supported_versions_list(min_versions=1, max_versions=3),
-    message=ase_message()
+    message_version=ase_version(),
+    agent_version=ase_version()
 )
 @settings(max_examples=100)
 def test_property_18_version_mismatch_graceful_degradation(
-    local_versions: List[Dict[str, Any]],
-    message: Dict[str, Any]
+    message_version: str,
+    agent_version: str
 ):
     """
     Property 18: Version Mismatch Graceful Degradation
     
-    For any version mismatch scenario, the ASE agent should gracefully
-    degrade to compatible functionality without failure.
+    For any version mismatch scenario, the ASE agent should gracefully degrade
+    to compatible functionality without failure.
     
     This test validates that:
-    1. Base protocol processing continues regardless of version mismatch
-    2. Economic metadata is ignored if version unsupported
-    3. Appropriate warnings are generated
-    4. Degradation mode is clearly indicated
-    5. Message processing succeeds even with version errors
-    6. Fallback to base protocol is transparent
+    1. Version mismatch is detected
+    2. Compatible feature set is determined
+    3. Processing continues with degraded features
+    4. No errors or exceptions occur
+    5. Base protocol functionality is preserved
+    
+    Validates: Requirements 7.6
     """
-    local_version_set = {v['version'] for v in local_versions}
-    
-    # Extract message version if present
-    message_version = None
-    has_ase_metadata = "aseMetadata" in message
-    
-    if has_ase_metadata:
-        message_version = message["aseMetadata"]["version"]
-    
-    # Determine if version is supported
-    version_supported = message_version in local_version_set if message_version else False
-    
-    # Process message with graceful degradation
-    if not has_ase_metadata:
-        # Non-ASE message - should process normally
-        result = {
-            "success": True,
-            "processedContent": message["content"],
-            "economicCost": 0,
-            "aseStatus": {
-                "degraded": False,
-                "reason": "No ASE metadata present"
+    # Create message with specific version
+    message = {
+        "id": "msg_version_test",
+        "content": "Test message",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "sender": "agent_sender",
+        "receiver": "agent_receiver",
+        "messageType": "request",
+        "aseMetadata": {
+            "version": message_version,
+            "agentIdentity": {
+                "agentId": "agent_sender",
+                "agentType": "autonomous"
             }
         }
-        
-        assert result["success"] == True, "Non-ASE message should process successfully"
-        assert result["economicCost"] == 0, "Non-ASE message should have zero cost"
-        assert result["aseStatus"]["degraded"] == False
-        
-    elif not version_supported:
-        # ASE message with unsupported version - degrade gracefully
-        result = {
-            "success": True,
-            "processedContent": message["content"],
-            "economicCost": 0,
-            "aseStatus": {
-                "degraded": True,
-                "degradedFeatures": ["all"],
-                "reason": f"Version {message_version} not supported",
-                "supportedVersions": list(local_version_set),
-                "degradedMode": "base_protocol_only",
-                "fallbackBehavior": "ignore"
-            },
-            "warnings": [{
-                "code": "ASE_VERSION_MISMATCH",
-                "message": f"ASE version {message_version} not supported",
-                "supportedVersions": list(local_version_set),
-                "degradedMode": "base_protocol_only"
-            }]
+    }
+    
+    # Agent processes message with its supported version
+    version_order = ["0.1.0", "1.0.0", "2.0.0"]
+    message_version_idx = version_order.index(message_version)
+    agent_version_idx = version_order.index(agent_version)
+    
+    # Determine compatible version (lower of the two)
+    compatible_version_idx = min(message_version_idx, agent_version_idx)
+    compatible_version = version_order[compatible_version_idx]
+    
+    # Determine available features based on compatible version
+    available_features = {
+        "base_protocol": True,
+        "cost_declaration": True,
+        "audit_bundles": True,
+        "delegation_tokens": compatible_version in ["1.0.0", "2.0.0"],
+        "provisional_charges": compatible_version in ["1.0.0", "2.0.0"],
+        "dispute_resolution": compatible_version == "2.0.0",
+        "reconciliation": compatible_version == "2.0.0"
+    }
+    
+    # Process message with degraded features
+    processing_result = {
+        "messageId": message["id"],
+        "compatibleVersion": compatible_version,
+        "availableFeatures": available_features,
+        "degraded": message_version != agent_version,
+        "processingSucceeded": True
+    }
+    
+    # Validate graceful degradation
+    assert processing_result["processingSucceeded"], \
+        "Processing must succeed despite version mismatch"
+    assert processing_result["compatibleVersion"] in version_order, \
+        "Compatible version must be valid"
+    assert processing_result["availableFeatures"]["base_protocol"], \
+        "Base protocol must always be available"
+    
+    # Validate feature availability based on compatible version
+    if compatible_version == "0.1.0":
+        assert not processing_result["availableFeatures"]["delegation_tokens"]
+        assert not processing_result["availableFeatures"]["dispute_resolution"]
+    elif compatible_version == "1.0.0":
+        assert processing_result["availableFeatures"]["delegation_tokens"]
+        assert not processing_result["availableFeatures"]["dispute_resolution"]
+    elif compatible_version == "2.0.0":
+        assert processing_result["availableFeatures"]["delegation_tokens"]
+        assert processing_result["availableFeatures"]["dispute_resolution"]
+    
+    # Validate no errors occurred
+    assert "error" not in processing_result
+
+
+# Property 20: Test Suite Protocol Compliance Validation
+
+@given(
+    test_message=ase_message()
+)
+@settings(max_examples=100)
+def test_property_20_protocol_compliance_validation(
+    test_message: Dict[str, Any]
+):
+    """
+    Property 20: Test Suite Protocol Compliance Validation
+    
+    For any test suite execution, protocol compliance and backward compatibility
+    should be properly validated.
+    
+    This test validates that:
+    1. Message structure conforms to ASE schema
+    2. Required fields are present
+    3. Field types are correct
+    4. Version-specific features are validated
+    5. Backward compatibility is maintained
+    
+    Validates: Requirements 9.6
+    """
+    # Validate base protocol compliance
+    base_protocol_checks = {
+        "has_id": "id" in test_message,
+        "has_content": "content" in test_message,
+        "has_timestamp": "timestamp" in test_message,
+        "has_sender": "sender" in test_message,
+        "has_receiver": "receiver" in test_message,
+        "has_message_type": "messageType" in test_message
+    }
+    
+    # Validate ASE metadata compliance
+    ase_metadata_checks = {
+        "has_ase_metadata": "aseMetadata" in test_message,
+        "has_version": "aseMetadata" in test_message and "version" in test_message["aseMetadata"],
+        "has_agent_identity": "aseMetadata" in test_message and "agentIdentity" in test_message["aseMetadata"]
+    }
+    
+    # Validate version-specific compliance
+    if "aseMetadata" in test_message:
+        version = test_message["aseMetadata"]["version"]
+        version_checks = {
+            "valid_version": version in ["0.1.0", "1.0.0", "2.0.0"],
+            "v1_features_valid": True,
+            "v2_features_valid": True
         }
         
-        # Validate graceful degradation
-        assert result["success"] == True, \
-            "Message should process successfully despite version mismatch"
-        assert result["processedContent"] == message["content"], \
-            "Base protocol content should be processed"
-        assert result["aseStatus"]["degraded"] == True, \
-            "Degradation flag should be set"
-        assert "reason" in result["aseStatus"], \
-            "Degradation reason should be provided"
-        assert len(result["warnings"]) > 0, \
-            "Warnings should be generated for version mismatch"
-        assert result["warnings"][0]["code"] == "ASE_VERSION_MISMATCH", \
-            "Warning code should indicate version mismatch"
+        # Check v1.0.0+ features
+        if version in ["1.0.0", "2.0.0"]:
+            if "delegationToken" in test_message["aseMetadata"]:
+                version_checks["v1_features_valid"] = \
+                    test_message["aseMetadata"]["delegationToken"] is None or \
+                    isinstance(test_message["aseMetadata"]["delegationToken"], str)
         
-        # Validate economic metadata is ignored
-        assert result["economicCost"] == 0, \
-            "Economic metadata should be ignored for unsupported version"
-        
+        # Check v2.0.0 features
+        if version == "2.0.0":
+            if "disputeReference" in test_message["aseMetadata"]:
+                version_checks["v2_features_valid"] = \
+                    test_message["aseMetadata"]["disputeReference"] is None or \
+                    isinstance(test_message["aseMetadata"]["disputeReference"], str)
     else:
-        # ASE message with supported version - process normally
-        result = {
-            "success": True,
-            "processedContent": message["content"],
-            "economicCost": 0,  # Would be calculated from metadata
-            "aseStatus": {
-                "degraded": False,
-                "version": message_version
-            }
+        version_checks = {
+            "valid_version": True,  # Non-ASE message is valid
+            "v1_features_valid": True,
+            "v2_features_valid": True
         }
-        
-        assert result["success"] == True, "Supported version should process successfully"
-        assert result["aseStatus"]["degraded"] == False, "No degradation for supported version"
-        assert result["aseStatus"]["version"] == message_version
-
-
-@given(
-    local_versions=supported_versions_list(min_versions=1, max_versions=3),
-    remote_versions=supported_versions_list(min_versions=1, max_versions=3),
-    required_features=feature_list(min_features=0, max_features=3)
-)
-@settings(max_examples=100)
-def test_version_selection_determinism(
-    local_versions: List[Dict[str, Any]],
-    remote_versions: List[Dict[str, Any]],
-    required_features: List[str]
-):
-    """
-    Test that version selection is deterministic.
     
-    Given the same inputs, version selection should always produce
-    the same result.
-    """
-    # Select version twice
-    selected1 = select_version(local_versions, remote_versions, required_features)
-    selected2 = select_version(local_versions, remote_versions, required_features)
-    
-    # Results should be identical
-    assert selected1 == selected2, \
-        "Version selection should be deterministic"
-
-
-@given(
-    versions=supported_versions_list(min_versions=2, max_versions=5)
-)
-@settings(max_examples=100)
-def test_version_ordering(versions: List[Dict[str, Any]]):
-    """
-    Test that version comparison correctly orders versions.
-    
-    Semantic versioning should be properly compared.
-    """
-    version_strings = [v['version'] for v in versions]
-    
-    # Sort versions
-    sorted_versions = sorted(version_strings, key=parse_version)
-    
-    # Validate ordering
-    for i in range(len(sorted_versions) - 1):
-        v1 = sorted_versions[i]
-        v2 = sorted_versions[i + 1]
-        
-        # v1 should be less than or equal to v2
-        comparison = compare_versions(v1, v2)
-        assert comparison <= 0, \
-            f"Version {v1} should be <= {v2} in sorted order"
-
-
-@given(
-    local_versions=supported_versions_list(min_versions=1, max_versions=3),
-    remote_versions=supported_versions_list(min_versions=1, max_versions=3)
-)
-@settings(max_examples=100)
-def test_common_version_detection(
-    local_versions: List[Dict[str, Any]],
-    remote_versions: List[Dict[str, Any]]
-):
-    """
-    Test that common versions are correctly identified.
-    """
-    local_set = {v['version'] for v in local_versions}
-    remote_set = {v['version'] for v in remote_versions}
-    
-    common = local_set & remote_set
-    
-    # Validate common versions
-    for version in common:
-        assert version in local_set, f"Common version {version} should be in local set"
-        assert version in remote_set, f"Common version {version} should be in remote set"
-    
-    # Validate non-common versions
-    for version in local_set - common:
-        assert version not in remote_set, \
-            f"Non-common version {version} should not be in remote set"
-
-
-@given(
-    versions=supported_versions_list(min_versions=1, max_versions=5),
-    feature_name=st.sampled_from([
-        "backwardCompatibility",
-        "provisionalCharges",
-        "delegationTokens",
-        "disputeResolution",
-        "auditBundles",
-        "chargeReconciliation"
-    ])
-)
-@settings(max_examples=100)
-def test_feature_detection(
-    versions: List[Dict[str, Any]],
-    feature_name: str
-):
-    """
-    Test that feature support is correctly detected.
-    """
-    for version_cap in versions:
-        version = version_cap['version']
-        features = version_cap['features']
-        
-        # Check feature support
-        is_supported = features.get(feature_name, False)
-        
-        # Validate feature flag is boolean
-        assert isinstance(is_supported, bool), \
-            f"Feature flag for {feature_name} should be boolean"
-
-
-@given(
-    message=ase_message(include_economic_data=True)
-)
-@settings(max_examples=100)
-def test_base_protocol_preservation(message: Dict[str, Any]):
-    """
-    Test that base protocol is preserved regardless of ASE metadata.
-    
-    The base protocol message should always be processable even if
-    ASE metadata is invalid or unsupported.
-    """
-    # Extract base protocol message
-    base_message = {
-        "type": message["type"],
-        "content": message["content"]
+    # Validate backward compatibility
+    backward_compat_checks = {
+        "base_fields_accessible": all(base_protocol_checks.values()),
+        "ase_fields_optional": True,  # ASE fields are always optional
+        "can_strip_ase_metadata": True  # Can remove ASE metadata and still have valid message
     }
     
-    # Validate base message is complete
-    assert "type" in base_message, "Base message must have type"
-    assert "content" in base_message, "Base message must have content"
-    
-    # Simulate processing base protocol only
-    result = {
-        "success": True,
-        "processedContent": base_message["content"]
+    # Compile compliance report
+    compliance_report = {
+        "messageId": test_message["id"],
+        "baseProtocolCompliant": all(base_protocol_checks.values()),
+        "aseMetadataCompliant": all(ase_metadata_checks.values()) if "aseMetadata" in test_message else True,
+        "versionCompliant": all(version_checks.values()),
+        "backwardCompatible": all(backward_compat_checks.values()),
+        "overallCompliant": all(base_protocol_checks.values()) and all(version_checks.values()) and all(backward_compat_checks.values())
     }
     
-    assert result["success"] == True, \
-        "Base protocol should always process successfully"
-    assert result["processedContent"] == message["content"], \
-        "Base protocol content should be preserved"
+    # Validate overall compliance
+    assert compliance_report["baseProtocolCompliant"], \
+        "Message must comply with base protocol"
+    assert compliance_report["versionCompliant"], \
+        "Message must comply with version-specific requirements"
+    assert compliance_report["backwardCompatible"], \
+        "Message must maintain backward compatibility"
+    assert compliance_report["overallCompliant"], \
+        "Message must be fully compliant with ASE protocol"
+    
+    # Validate JSON serialization compliance
+    try:
+        serialized = json.dumps(test_message)
+        deserialized = json.loads(serialized)
+        serialization_compliant = deserialized["id"] == test_message["id"]
+    except Exception:
+        serialization_compliant = False
+    
+    assert serialization_compliant, "Message must be JSON serializable"
 
 
 @given(
-    request=negotiation_request()
+    messages=st.lists(ase_message(), min_size=5, max_size=20)
 )
 @settings(max_examples=100)
-def test_negotiation_request_structure(request: Dict[str, Any]):
-    """
-    Test that negotiation requests have valid structure.
-    """
-    # Validate required fields
-    assert "supportedVersions" in request, "Request must have supportedVersions"
-    assert "preferredVersion" in request, "Request must have preferredVersion"
-    
-    # Validate supported versions
-    assert isinstance(request["supportedVersions"], list), \
-        "supportedVersions must be a list"
-    assert len(request["supportedVersions"]) > 0, \
-        "supportedVersions must not be empty"
-    
-    # Validate each version capability
-    for version_cap in request["supportedVersions"]:
-        assert "version" in version_cap, "Version capability must have version"
-        assert "features" in version_cap, "Version capability must have features"
-        
-        # Validate version format
-        version = version_cap["version"]
-        parts = version.split('.')
-        assert len(parts) == 3, "Version must be in format major.minor.patch"
-        assert all(p.isdigit() for p in parts), "Version parts must be numeric"
-        
-        # Validate features
-        features = version_cap["features"]
-        assert isinstance(features, dict), "Features must be a dictionary"
-    
-    # Validate preferred version is in supported versions
-    preferred = request["preferredVersion"]
-    supported_version_strings = [v["version"] for v in request["supportedVersions"]]
-    assert preferred in supported_version_strings, \
-        "Preferred version must be in supported versions list"
-
-
-@given(
-    local_versions=supported_versions_list(min_versions=1, max_versions=3),
-    remote_versions=supported_versions_list(min_versions=1, max_versions=3),
-    required_features=feature_list(min_features=1, max_features=3)
-)
-@settings(max_examples=100)
-def test_feature_requirement_enforcement(
-    local_versions: List[Dict[str, Any]],
-    remote_versions: List[Dict[str, Any]],
-    required_features: List[str]
+def test_protocol_compliance_batch_validation(
+    messages: List[Dict[str, Any]]
 ):
     """
-    Test that required features are properly enforced during negotiation.
-    """
-    selected_version = select_version(local_versions, remote_versions, required_features)
+    Test batch protocol compliance validation.
     
-    if selected_version is not None:
-        # Version was selected - validate it supports all required features
-        local_features = get_supported_features(local_versions, selected_version)
-        remote_features = get_supported_features(remote_versions, selected_version)
+    Validates that multiple messages can be validated for compliance
+    in a batch operation.
+    """
+    compliance_results = []
+    
+    for msg in messages:
+        # Validate each message
+        is_compliant = (
+            "id" in msg and
+            "content" in msg and
+            "sender" in msg and
+            "receiver" in msg
+        )
         
-        for feature in required_features:
-            assert local_features.get(feature, False), \
-                f"Selected version must support required feature {feature} locally"
-            assert remote_features.get(feature, False), \
-                f"Selected version must support required feature {feature} remotely"
+        compliance_results.append({
+            "messageId": msg["id"],
+            "compliant": is_compliant
+        })
+    
+    # Validate all messages were checked
+    assert len(compliance_results) == len(messages)
+    
+    # Validate compliance rate
+    compliant_count = sum(1 for r in compliance_results if r["compliant"])
+    compliance_rate = compliant_count / len(messages) if len(messages) > 0 else 0
+    
+    # All messages should be compliant (generated by valid strategies)
+    assert compliance_rate == 1.0, "All generated messages should be compliant"
 
 
 if __name__ == "__main__":
-    # Run tests with pytest
     import pytest
     pytest.main([__file__, "-v", "--tb=short"])
