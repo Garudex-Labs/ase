@@ -13,6 +13,8 @@ This directory contains formal JSON Schema definitions for all ASE protocol mess
 - `charge-event.schema.json` - Charge events (provisional and final)
 - `audit-reference.schema.json` - Audit bundle references
 - `delegation-token.schema.json` - Delegation tokens for hierarchical authorization
+- `dispute-event.schema.json` - Dispute events for charge reconciliation and resolution
+- `audit-bundle.schema.json` - Audit bundles for compliance and transaction history
 
 ## Usage
 
