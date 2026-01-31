@@ -101,6 +101,79 @@ Tests for delegation limit enforcement and token expiration handling.
 - Concurrent transaction race condition prevention
 - Atomic spending reservation validation
 
+### test_dispute_resolution_workflows.py
+
+Tests for dispute resolution workflows and escalation support.
+
+**Properties Tested**:
+- **Property 11: Dispute Event Creation** - Validates dispute events with complete evidence and charge references
+- **Property 12: Dispute Resolution Event Creation** - Validates resolution events with final settlement details
+- **Property 13: Dispute Escalation Support** - Validates dispute escalation to arbitration agents
+
+**Requirements Validated**: 5.1, 5.3, 5.4
+
+**Test Coverage**:
+- Dispute event structure validation
+- Dispute ID format validation
+- Original charge reference validation
+- Agent differentiation (disputing vs responding)
+- Evidence item structure and validation
+- Evidence type validation (log_entry, transaction_record, screenshot, etc.)
+- Content hash integrity validation
+- Status lifecycle validation (open, under_review, resolved, escalated, etc.)
+- Timestamp ordering validation
+- Escrow amount validation
+- Resolution event structure validation
+- Resolution ID format validation
+- Resolution outcome validation (dispute_upheld, dispute_rejected, refunds, etc.)
+- Settlement instructions validation
+- Adjustment amount validation
+- Escalation details validation
+- Escalation level constraints (1-5)
+- Previous arbitrators tracking
+- Escalation timestamp validation
+- Dispute lifecycle timing validation
+- Escrow management during disputes
+- JSON serialization compatibility
+
+### test_audit_bundle_integrity.py
+
+Tests for audit bundle integrity and completeness.
+
+**Properties Tested**:
+- **Property 15: Audit Bundle Integrity** - Validates cryptographic signing and tamper-evidence
+- **Property 16: Audit Bundle Completeness** - Validates complete transaction history for time periods
+
+**Requirements Validated**: 6.1, 6.2, 6.3, 6.5
+
+**Test Coverage**:
+- Audit bundle structure validation
+- Bundle ID format validation
+- Signature presence and format validation
+- Signature algorithm validation (ES256, RS256, ES384, RS384, ES512, RS512)
+- Public key ID validation
+- Time range validation
+- Transaction timestamp validation (within time range)
+- Summary statistics accuracy
+- Total transaction count validation
+- Agent participants list completeness
+- Transaction type count validation
+- Total amount calculation validation
+- Amount by agent calculation validation
+- Amount by currency calculation validation
+- Duplicate transaction detection
+- Previous bundle chain validation
+- Previous bundle hash validation
+- Merkle root validation
+- Transaction hash validation
+- Checksum algorithm validation
+- Tamper detection validation
+- Audit bundle chain integrity
+- Sequential time range validation
+- Metadata validation (audit purpose, retention period, encryption status)
+- Access control list validation
+- JSON serialization compatibility
+
 ## Running Tests
 
 ### Prerequisites
