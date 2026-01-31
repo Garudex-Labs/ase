@@ -12,6 +12,7 @@ This directory contains formal JSON Schema definitions for all ASE protocol mess
 - `budget-request.schema.json` - Budget requests
 - `charge-event.schema.json` - Charge events (provisional and final)
 - `audit-reference.schema.json` - Audit bundle references
+- `delegation-token.schema.json` - Delegation tokens for hierarchical authorization
 
 ## Usage
 
