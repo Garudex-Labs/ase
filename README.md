@@ -10,6 +10,8 @@ Key goals
 
 Package (Pypi): https://pypi.org/project/ase-protocol/1.0.1 (Latest Version)
 
+<a href="https://www.producthunt.com/products/agent-settlement-extension-ase?embed=true&amp;utm_source=badge-featured&amp;utm_medium=badge&amp;utm_campaign=badge-agent-settlement-extension-ase" target="_blank" rel="noopener noreferrer"><img alt="Agent Settlement Extension (ASE) - ASE is an economic metadata layer that extends A2A and MCP | Product Hunt" width="250" height="54" src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1071035&amp;theme=light&amp;t=1769931295687"></a>
+
 Repository layout
 - `schemas/` — JSON Schema files describing ASE data structures (audit bundles, delegation tokens, monetary amounts, etc.).
 - `src/` — Reference Python implementation and adapters. Key modules:
