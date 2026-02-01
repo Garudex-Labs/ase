@@ -324,5 +324,23 @@ This reference implementation validates:
 
 ## Version
 
-Reference Implementation Version: 1.0.0
+Reference Implementation Version: 1.0.1
 ASE Protocol Version: 1.0.0
+
+## Installation
+
+The ASE protocol package is published on PyPI and can be installed using pip:
+
+```bash
+pip install ase-protocol==1.0.1
+```
+
+For development and testing, you can install from source:
+
+```bash
+git clone <repository-url>
+cd ase
+pip install -e .
+```
+
+Package URL: https://pypi.org/project/ase-protocol/1.0.1
