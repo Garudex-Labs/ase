@@ -50,7 +50,7 @@ pytest tests/test_simple.py -q
 ```
 
 License
-- This project is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0). See `LICENSE` for the full text.
+- This project is licensed under the Apache License 2.0. See `LICENSE` for the full text.
 
 Contributing
 - Open issues for bugs and feature requests.
