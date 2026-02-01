@@ -8,6 +8,8 @@ Key goals
 - Provide machine-readable schemas and validators for settlement, audit, and delegation tokens.
 - Offer lightweight reference code to integrate ASE with agent frameworks.
 
+Package (Pypi): https://pypi.org/project/ase-protocol/1.0.1 (Latest Version)
+
 Repository layout
 - `schemas/` — JSON Schema files describing ASE data structures (audit bundles, delegation tokens, monetary amounts, etc.).
 - `src/` — Reference Python implementation and adapters. Key modules:
