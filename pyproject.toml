@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ase-protocol"
-version = "1.0.0"
+version = "1.0.1"
 description = "Agent Settlement Extension (ASE) Protocol Implementation"
 readme = "README.md"
 authors = [
@@ -13,7 +13,7 @@ authors = [
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: Apache-2.0 license",
+    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
 ]
 requires-python = ">=3.8"
