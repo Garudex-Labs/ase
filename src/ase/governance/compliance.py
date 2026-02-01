@@ -13,7 +13,7 @@ from typing import List, Optional, Dict, Any, Tuple
 from decimal import Decimal
 
 from pydantic import Field
-from core.serialization import SerializableModel
+from ase.core.serialization import SerializableModel
 
 
 class ComplianceStatus(Enum):

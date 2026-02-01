@@ -326,9 +326,3 @@ When extending the reference implementation:
 3. Add property-based tests for new functionality
 4. Document extension points and interfaces
 5. Maintain backward compatibility
-
-## References
-
-- [ASE Protocol Specification](../../docs/community/ase-protocol/specification.md)
-- [Design Document](../../.kiro/specs/ase/design.md)
-- [Requirements Document](../../.kiro/specs/ase/requirements.md)

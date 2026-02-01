@@ -4,11 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ase-protocol"
-version = "1.0.1"
-description = "Agent Settlement Extension (ASE) Protocol Implementation"
+version = "1.0.8"
+description = "Agent Settlement Extension (ASE) Protocol"
 readme = "README.md"
 authors = [
-  { name = "ASE Protocol Team", email = "team@ase-protocol.org" },
+  { name = "Garudex Labs Team", email = "support@garudexlabs.com" },
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -19,7 +19,7 @@ classifiers = [
 requires-python = ">=3.8"
 dependencies = [
     "pydantic>=2.0.0",
-    "cryptography>=41.0.0",
+    "cryptography>=41.0.0,<46",
     "pyjwt>=2.8.0",
 ]
 

@@ -171,6 +171,25 @@ class EconomicMetadata(SerializableModel):
     signature: Optional[str] = Field(None, description="Optional cryptographic signature")
 
 
+class MeteringEvent(SerializableModel):
+    """
+    Event representing resource usage for metering.
+    """
+    event_id: Optional[str] = Field(None, alias="eventId", description="Unique event identifier")
+    agent_id: str = Field(..., alias="agentId", description="Agent identifier")
+    resource_type: str = Field(..., alias="resourceType", description="Type of resource consumed")
+    quantity: Decimal = Field(..., description="Amount of resource consumed")
+    timestamp: datetime = Field(..., description="ISO 8601 timestamp")
+    metadata: Optional[Dict[str, Any]] = Field(None, description="Additional context")
+
+    @field_validator("quantity")
+    @classmethod
+    def validate_quantity(cls, v: Decimal) -> Decimal:
+        if v < 0:
+            raise ValueError("Quantity must be non-negative")
+        return v
+
+
 class FeatureSet(SerializableModel):
     """Feature capabilities for a specific version."""
     backward_compatibility: bool = Field(True, alias="backwardCompatibility")

@@ -294,3 +294,26 @@ class SemanticValidator(Validator):
     @property
     def name(self) -> str:
         return self._name
+
+
+def validate_message(
+    data: Any,
+    schema: Optional[Dict[str, Any]] = None,
+    validators: Optional[List[Validator]] = None
+) -> ValidationResult:
+    """
+    Validate a message using standard pipeline.
+    
+    Args:
+        data: Message data to validate
+        schema: Optional JSON schema
+        validators: Optional additional validators
+        
+    Returns:
+        ValidationResult
+    """
+    pipeline = ValidationPipeline(validators=validators)
+    if schema:
+        pipeline.add_validator(SchemaValidator(schema))
+    
+    return pipeline.validate(data)

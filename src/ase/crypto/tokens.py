@@ -16,7 +16,7 @@ from collections import defaultdict
 from .signing import SigningService, VerificationService, SignatureAlgorithm
 
 
-from .serialization import SerializableModel
+from ase.core.serialization import SerializableModel
 from pydantic import Field
 
 
