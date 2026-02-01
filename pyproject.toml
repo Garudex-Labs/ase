@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ase-protocol"
+version = "1.0.0"
+description = "Agent Settlement Extension (ASE) Protocol Implementation"
+readme = "README.md"
+authors = [
+  { name = "ASE Protocol Team", email = "team@ase-protocol.org" },
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache-2.0 license",
+    "Programming Language :: Python :: 3",
+]
+requires-python = ">=3.8"
+dependencies = [
+    "pydantic>=2.0.0",
+    "cryptography>=41.0.0",
+    "pyjwt>=2.8.0",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8.0.0",
+    "hypothesis>=6.100.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
