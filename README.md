@@ -16,7 +16,7 @@ Repository layout
   - `crypto/` — Key handling, signing, and token utilities.
   - `governance/` — Compliance helpers and RFC-style governance workflows.
 - `tests/` — Test suites and example scenarios validating cross-framework compatibility and protocol behavior.
-- `IMPLEMENTATION.md` and `PROTOCOL.md` — Design notes and protocol specifics.
+- `GET_STARTED.md` and `PROTOCOL.md` — Design notes and protocol specifics.
 
 Quick start (developer)
 1. Create a Python virtual environment and install test/dev dependencies from `tests/requirements.txt`.
