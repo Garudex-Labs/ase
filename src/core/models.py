@@ -108,14 +108,32 @@ class AuditEntry(SerializableModel):
     details: Dict[str, Any]
 
 
+class EconomicEvent(SerializableModel):
+    """
+    General economic event for audit logs.
+    """
+    event_id: str = Field(..., alias="eventId")
+    event_type: str = Field(..., alias="eventType", description="cost_declaration, budget_request, provisional_charge, final_charge, dispute")
+    timestamp: datetime
+    agent_id: str = Field(..., alias="agentId")
+    amount: Optional[MonetaryAmount] = None
+    currency: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
+    audit_trail: Optional[List["AuditEntry"]] = Field(None, alias="auditTrail")
+
+
 class AuditBundle(SerializableModel):
     """
     Cryptographically signed collection of audit logs.
     """
     bundle_id: str = Field(..., alias="bundleId")
+    generated_by: str = Field(..., alias="generatedBy")
     generated_at: datetime = Field(..., alias="generatedAt")
-    entries: List[AuditEntry]
-    signature: Optional[str] = None
+    time_range: Dict[str, datetime] = Field(..., alias="timeRange")
+    transactions: List[EconomicEvent]
+    summary: Dict[str, Any]
+    signature: str
+    signature_algorithm: str = Field(..., alias="signatureAlgorithm")
     signer_id: Optional[str] = Field(None, alias="signerId")
 
 
