@@ -179,7 +179,7 @@ class MeteringEvent(SerializableModel):
     agent_id: str = Field(..., alias="agentId", description="Agent identifier")
     resource_type: str = Field(..., alias="resourceType", description="Type of resource consumed")
     quantity: Decimal = Field(..., description="Amount of resource consumed")
-    timestamp: datetime = Field(..., description="ISO 8601 timestamp")
+    timestamp: datetime = Field(default_factory=lambda: datetime.utcnow(), description="ISO 8601 timestamp")
     metadata: Optional[Dict[str, Any]] = Field(None, description="Additional context")
 
     @field_validator("quantity")
