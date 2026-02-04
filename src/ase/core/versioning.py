@@ -4,7 +4,7 @@ Version negotiation and compatibility management.
 Handles ASE protocol version negotiation and feature capability detection.
 """
 
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 from enum import Enum
 from dataclasses import dataclass, field
 
