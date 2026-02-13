@@ -139,7 +139,7 @@ def rfc_proposal(draw, category=None, status=None, poc_required=None):
         approval_votes=approval_votes,
         target_version=draw(st.one_of(
             st.none(),
-            st.sampled_from(["1.0.0", "1.1.0", "2.0.0", "2.1.0"])
+            st.sampled_from(["1.0.0", "1.2.0", "2.0.0", "2.1.0"])
         ))
     )
 

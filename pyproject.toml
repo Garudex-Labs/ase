@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ase-protocol"
-version = "1.1.0"
+version = "1.2.0"
 description = "Agent Settlement Extension (ASE) Protocol"
 readme = "README.md"
 authors = [

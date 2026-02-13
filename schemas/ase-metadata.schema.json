@@ -4,13 +4,20 @@
   "title": "ASE Metadata",
   "description": "Top-level ASE economic metadata container",
   "type": "object",
-  "required": ["version", "economicData"],
+  "required": [
+    "version",
+    "economicData"
+  ],
   "properties": {
     "version": {
       "type": "string",
       "description": "ASE protocol version",
       "pattern": "^\\d+\\.\\d+\\.\\d+$",
-      "examples": ["1.0.0", "1.1.0", "2.0.0"]
+      "examples": [
+        "1.0.0",
+        "1.2.0",
+        "2.0.0"
+      ]
     },
     "economicData": {
       "$ref": "economic-data.schema.json#"
