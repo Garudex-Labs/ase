@@ -78,11 +78,25 @@ class EconomicData(SerializableModel):
     # budget/cost fields removed
 
 
+class MeteringEvent(SerializableModel):
+    """
+    A metering event for tracking resource usage.
+
+    Used by Caracal to record client consumption of API resources
+    for audit and billing purposes.
+    """
+    agent_id: str = Field(..., alias="agentId", description="Agent that consumed the resource")
+    resource_type: str = Field(..., alias="resourceType", description="Type of resource consumed")
+    quantity: Any = Field(..., description="Quantity consumed (typically Decimal)")
+    timestamp: Optional[datetime] = Field(None, description="When the event occurred")
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional event metadata")
+
+
 class EconomicMetadata(SerializableModel):
     """
     Top-level ASE protocol metadata container.
     """
     version: str = Field(..., description="ASE protocol version")
-    data: EconomicData = Field(..., alias="economicData") # field alias kept for compatibility if needed, or maybe rename? keeping alias economicData for now as it might be used by middleware
+    data: EconomicData = Field(..., alias="economicData")
     signature: Optional[str] = Field(None, description="Optional cryptographic signature")
 

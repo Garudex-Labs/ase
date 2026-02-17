@@ -7,7 +7,7 @@ from .validation import ValidationPipeline, ValidationError, ValidationResult
 from .extensions import ExtensionRegistry, ExtensionPoint
 from .models import (
     AgentIdentity, AuditReference, DelegationToken, EconomicMetadata,
-    EconomicData, AuditEntry, AuditBundle
+    EconomicData, AuditEntry, AuditBundle, MeteringEvent
 )
 from .audit import AuditManager
 from .versioning import VersionManager
@@ -27,6 +27,7 @@ __all__ = [
     "EconomicData",
     "AuditEntry",
     "AuditBundle",
+    "MeteringEvent",
     "AuditManager",
     "VersionManager",
 ]

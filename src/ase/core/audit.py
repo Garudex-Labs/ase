@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional
 import uuid
 
-from .models import AuditEntry, AuditBundle, EconomicEvent, SerializableModel
+from .models import AuditEntry, AuditBundle, SerializableModel
 from ..crypto.signing import SigningService, SignatureAlgorithm
 
 
@@ -21,11 +21,11 @@ class AuditManager:
     def __init__(self, signing_service: Optional[SigningService] = None):
         self.signing_service = signing_service
         # In-memory log storage
-        self._transactions: List[EconomicEvent] = []
+        self._transactions: List[AuditEntry] = []
 
-    def log_event(self, event: EconomicEvent) -> EconomicEvent:
+    def log_event(self, event: AuditEntry) -> AuditEntry:
         """
-        Log an economic event.
+        Log an audit event.
         """
         self._transactions.append(event)
         return event
@@ -56,7 +56,7 @@ class AuditManager:
             generated_by=agent_id,
             generated_at=now,
             time_range={"startTime": start_time, "endTime": end_time},
-            transactions=transactions_to_include,
+            entries=transactions_to_include,
             summary={
                 "totalTransactions": total_transactions,
                 "agentParticipants": list(set(tx.agent_id for tx in transactions_to_include))
@@ -70,7 +70,7 @@ class AuditManager:
             # Sign the bundle content
             # Canonical serialization of the "content" part
             content_dict = bundle.model_dump(
-                include={'bundle_id', 'generated_by', 'generated_at', 'time_range', 'transactions', 'summary', 'signer_id', 'signature_algorithm'}, 
+                include={'bundle_id', 'generated_by', 'generated_at', 'time_range', 'entries', 'summary', 'signer_id', 'signature_algorithm'}, 
                 mode='json', 
                 by_alias=True
             )
