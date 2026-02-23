@@ -31,14 +31,10 @@ class TokenClaims(SerializableModel):
     jti: str  # Unique token ID
     
     # ASE-specific claims
-    spending_limit: Dict[str, Any] = Field(..., alias="spendingLimit")  # {"value": "100.00", "currency": "USD"}
     allowed_operations: List[str] = Field(..., alias="allowedOperations")
-    max_delegation_depth: int = Field(..., alias="maxDelegationDepth")
-    budget_category: str = Field(..., alias="budgetCategory")
     
     # Optional claims
     nbf: Optional[int] = None  # Not before timestamp
-    parent_token_id: Optional[str] = Field(None, alias="parentTokenId")  # For hierarchical delegation
     
     # Note: SerializableModel already provides to_dict(), from_dict(), to_json(), from_json()
 
@@ -177,11 +173,8 @@ class TokenSigner:
             raise TokenSigningError(f"Failed to create token: {e}") from e
     
     def create_delegation_token(self, delegating_agent_id: str, delegated_agent_id: str,
-                               spending_limit_value: str, spending_limit_currency: str,
-                               allowed_operations: List[str], budget_category: str,
+                               allowed_operations: List[str],
                                key_id: str, validity_hours: int = 24,
-                               max_delegation_depth: int = 5,
-                               parent_token_id: Optional[str] = None,
                                algorithm: SignatureAlgorithm = SignatureAlgorithm.ES256) -> str:
         """
         Create a delegation token with standard parameters.
@@ -189,14 +182,9 @@ class TokenSigner:
         Args:
             delegating_agent_id: Agent creating the delegation
             delegated_agent_id: Agent receiving the delegation
-            spending_limit_value: Spending limit amount
-            spending_limit_currency: Currency code
             allowed_operations: List of allowed operations
-            budget_category: Budget category
             key_id: Signing key identifier
             validity_hours: Token validity in hours
-            max_delegation_depth: Maximum delegation chain depth
-            parent_token_id: Parent token ID for hierarchical delegation
             algorithm: Signature algorithm
             
         Returns:
@@ -217,14 +205,7 @@ class TokenSigner:
             exp=exp,
             iat=iat,
             jti=jti,
-            spending_limit={
-                "value": spending_limit_value,
-                "currency": spending_limit_currency
-            },
             allowed_operations=allowed_operations,
-            max_delegation_depth=max_delegation_depth,
-            budget_category=budget_category,
-            parent_token_id=parent_token_id,
         )
         
         return self.create_token(claims, key_id, algorithm)
@@ -350,29 +331,6 @@ class TokenVerifier:
         except Exception as e:
             raise TokenVerificationError(f"Token verification failed: {e}") from e
     
-    def validate_spending_limit(self, claims: TokenClaims, requested_amount: Decimal,
-                                requested_currency: str) -> bool:
-        """
-        Validate that requested amount is within spending limit.
-        
-        Args:
-            claims: Token claims
-            requested_amount: Requested spending amount
-            requested_currency: Requested currency
-            
-        Returns:
-            True if within limit, False otherwise
-        """
-        limit_value = Decimal(claims.spending_limit["value"])
-        limit_currency = claims.spending_limit["currency"]
-        
-        # Currency must match
-        if requested_currency != limit_currency:
-            return False
-        
-        # Amount must be within limit
-        return requested_amount <= limit_value
-    
     def validate_operation(self, claims: TokenClaims, operation: str) -> bool:
         """
         Validate that operation is allowed.
@@ -391,7 +349,7 @@ class TokenVerifier:
         Validate a chain of delegation tokens.
         
         Args:
-            tokens: List of tokens from parent to child
+            tokens: List of tokens from source to target
             
         Returns:
             True if chain is valid, False otherwise
@@ -410,37 +368,15 @@ class TokenVerifier:
         
         # Validate chain relationships
         for i in range(len(claims_chain) - 1):
-            parent = claims_chain[i]
-            child = claims_chain[i + 1]
+            source = claims_chain[i]
+            target = claims_chain[i + 1]
             
-            # Child's issuer must be parent's subject
-            if child.iss != parent.sub:
+            # Target's issuer must be source's subject
+            if target.iss != source.sub:
                 return False
             
-            # Child's spending limit must not exceed parent's
-            child_limit = Decimal(child.spending_limit["value"])
-            parent_limit = Decimal(parent.spending_limit["value"])
-            if child_limit > parent_limit:
+            # Target's operations must be subset of source's
+            if source.allowed_operations and not set(target.allowed_operations).issubset(set(source.allowed_operations)):
                 return False
-            
-            # Currency must match
-            if child.spending_limit["currency"] != parent.spending_limit["currency"]:
-                return False
-            
-            # Child's operations must be subset of parent's
-            if not set(child.allowed_operations).issubset(set(parent.allowed_operations)):
-                return False
-        
-        # Validate depth
-        if len(claims_chain) > claims_chain[0].max_delegation_depth:
-            return False
-        
+                
         return True
-    
-    def _base64url_decode(self, data: str) -> bytes:
-        """Decode base64url data (JWT standard)."""
-        # Add padding if needed
-        padding = 4 - (len(data) % 4)
-        if padding != 4:
-            data += '=' * padding
-        return base64.urlsafe_b64decode(data)

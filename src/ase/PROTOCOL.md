@@ -93,7 +93,6 @@ Requests budget allocation:
 interface BudgetRequest {
   requestId: string;            // Unique request identifier
   requestedAmount: MonetaryAmount;  // Requested amount
-  budgetCategory: string;       // Budget category
   purpose: string;              // Purpose description
   timeframe?: Timeframe;        // Optional time constraints
 }
@@ -129,10 +128,7 @@ interface DelegationTokenPayload {
   exp: number;                  // Expiration timestamp
   
   // ASE-specific claims
-  spendingLimit: MonetaryAmount;    // Maximum spending
   allowedOperations: string[];      // Permitted operations
-  maxDelegationDepth: number;       // Max chain depth (1-5)
-  budgetCategory: string;           // Budget category
 }
 ```
 
@@ -265,18 +261,18 @@ Messages are validated in this order:
 ### Workflow 3: Delegation Token Usage
 
 ```json
-// Parent agent creates delegation token
+// Source agent creates delegation token
 {
   "delegationToken": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJwYXJlbnRfYWdlbnQiLCJzdWIiOiJjaGlsZF9hZ2VudCIsImV4cCI6MTcwNjcxNjgwMCwic3BlbmRpbmdMaW1pdCI6eyJ2YWx1ZSI6IjEwMDAuMDAiLCJjdXJyZW5jeSI6IlVTRCJ9LCJhbGxvd2VkT3BlcmF0aW9ucyI6WyJyZWFkIiwid3JpdGUiXSwibWF4RGVsZWdhdGlvbkRlcHRoIjozLCJidWRnZXRDYXRlZ29yeSI6Im1sX2luZmVyZW5jZSJ9.signature"
 }
 
-// Child agent uses token in request
+// Target agent uses token in request
 {
   "aseMetadata": {
     "version": "1.0.0",
     "economicData": {
       "agentIdentity": {
-        "agentId": "child_agent",
+        "agentId": "target_agent",
         "agentType": "autonomous"
       },
       "delegationToken": "eyJhbGc...",
@@ -284,7 +280,7 @@ Messages are validated in this order:
         "eventId": "evt_001",
         "eventType": "final",
         "timestamp": "2024-01-31T10:00:00Z",
-        "agentId": "child_agent",
+        "agentId": "target_agent",
         "amount": { "value": "50.00", "currency": "USD" },
         "description": "Charge under delegation",
         "status": "confirmed"

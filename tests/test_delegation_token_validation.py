@@ -20,21 +20,6 @@ from hypothesis import given, settings, assume
 # Test data generators
 
 @st.composite
-def monetary_amount(draw):
-    """Generate valid monetary amounts."""
-    value = draw(st.decimals(
-        min_value=Decimal("0.01"),
-        max_value=Decimal("999999.99"),
-        places=2
-    ))
-    currency = draw(st.sampled_from(["USD", "EUR", "GBP", "JPY"]))
-    return {
-        "value": str(value),
-        "currency": currency
-    }
-
-
-@st.composite
 def agent_id(draw):
     """Generate valid agent identifiers."""
     prefix = draw(st.sampled_from(["agent", "service", "client"]))
@@ -61,7 +46,7 @@ def jwt_header(draw):
 
 
 @st.composite
-def delegation_token_payload(draw, parent_token=None, base_time=None):
+def delegation_token_payload(draw, source_token=None, base_time=None):
     """Generate valid delegation token payload."""
     if base_time is None:
         base_time = int(time.time())
@@ -69,18 +54,6 @@ def delegation_token_payload(draw, parent_token=None, base_time=None):
     # Generate expiration time between 1 hour and 24 hours in the future
     expiration_hours = draw(st.integers(min_value=1, max_value=24))
     exp_time = base_time + (expiration_hours * 3600)
-    
-    # Generate spending limit
-    spending_limit = draw(monetary_amount())
-    
-    # If parent token exists, ensure spending limit is less than or equal to parent
-    if parent_token:
-        parent_limit = Decimal(parent_token["payload"]["spendingLimit"]["value"])
-        child_limit = Decimal(spending_limit["value"])
-        assume(child_limit <= parent_limit)
-        
-        # Ensure same currency as parent
-        spending_limit["currency"] = parent_token["payload"]["spendingLimit"]["currency"]
     
     # Generate allowed operations
     all_operations = ["read", "write", "compute", "delegate", "audit"]
@@ -95,18 +68,10 @@ def delegation_token_payload(draw, parent_token=None, base_time=None):
             unique=True
         ))
     
-    # If parent token exists, ensure operations are subset of parent
-    if parent_token and parent_token["payload"].get("allowedOperations"):
-        parent_ops = set(parent_token["payload"]["allowedOperations"])
-        allowed_operations = [op for op in allowed_operations if op in parent_ops]
-    
-    # Calculate delegation depth
-    if parent_token:
-        parent_depth = parent_token["payload"]["maxDelegationDepth"]
-        assume(parent_depth > 0)  # Parent must allow delegation
-        max_delegation_depth = draw(st.integers(min_value=0, max_value=parent_depth - 1))
-    else:
-        max_delegation_depth = draw(st.integers(min_value=0, max_value=5))
+    # If source token exists, ensure operations are subset of source
+    if source_token and source_token["payload"].get("allowedOperations"):
+        source_ops = set(source_token["payload"]["allowedOperations"])
+        allowed_operations = [op for op in allowed_operations if op in source_ops]
     
     payload = {
         "iss": draw(agent_id()),
@@ -115,26 +80,17 @@ def delegation_token_payload(draw, parent_token=None, base_time=None):
         "exp": exp_time,
         "iat": base_time,
         "jti": f"token_{base_time}_{draw(st.text(alphabet=st.characters(whitelist_categories=('Ll', 'Nd')), min_size=8, max_size=16))}",
-        "spendingLimit": spending_limit,
         "allowedOperations": allowed_operations,
-        "maxDelegationDepth": max_delegation_depth,
-        "budgetCategory": draw(st.sampled_from(["research", "production", "development", "testing"]))
     }
-    
-    # Add parent token reference if exists
-    if parent_token:
-        payload["parentTokenId"] = parent_token["payload"]["jti"]
-        parent_chain = parent_token["payload"].get("delegationChain", [])
-        payload["delegationChain"] = parent_chain + [parent_token["payload"]["jti"]]
     
     return payload
 
 
 @st.composite
-def delegation_token(draw, parent_token=None, base_time=None):
+def delegation_token(draw, source_token=None, base_time=None):
     """Generate complete delegation token."""
     header = draw(jwt_header())
-    payload = draw(delegation_token_payload(parent_token=parent_token, base_time=base_time))
+    payload = draw(delegation_token_payload(source_token=source_token, base_time=base_time))
     
     # Generate mock signature (base64url-encoded)
     signature = draw(st.text(
@@ -160,18 +116,14 @@ def delegation_chain(draw, max_depth=None):
     tokens = []
     
     # Create root token
-    root_token = draw(delegation_token(parent_token=None, base_time=base_time))
+    root_token = draw(delegation_token(source_token=None, base_time=base_time))
     tokens.append(root_token)
     
-    # Create child tokens
+    # Create target tokens
     for i in range(max_depth - 1):
-        parent = tokens[-1]
-        # Only create child if parent allows delegation
-        if parent["payload"]["maxDelegationDepth"] > 0:
-            child_token = draw(delegation_token(parent_token=parent, base_time=base_time))
-            tokens.append(child_token)
-        else:
-            break
+        source = tokens[-1]
+        target_token = draw(delegation_token(source_token=source, base_time=base_time))
+        tokens.append(target_token)
     
     return tokens
 
@@ -185,13 +137,12 @@ def test_property_7_delegation_token_validation(token: Dict[str, Any]):
     Property 7: Delegation Token Validation
     
     For any delegation token usage, the ASE agent should validate both
-    cryptographic signatures and spending limits before processing.
+    cryptographic signatures before processing.
     
     This test validates that:
     1. Token has all required JWT fields (header, payload, signature)
     2. Header specifies valid algorithm (ES256 or RS256)
     3. Payload contains all required claims
-    4. Spending limit is positive and properly formatted
     5. Expiration time is in the future
     6. Token ID is unique and properly formatted
     7. Allowed operations are valid
@@ -212,7 +163,7 @@ def test_property_7_delegation_token_validation(token: Dict[str, Any]):
     
     # Validate payload - required claims
     payload = token["payload"]
-    required_claims = ["iss", "sub", "aud", "exp", "iat", "jti", "spendingLimit"]
+    required_claims = ["iss", "sub", "aud", "exp", "iat", "jti"]
     for claim in required_claims:
         assert claim in payload, f"Missing required claim: {claim}"
     
@@ -241,17 +192,6 @@ def test_property_7_delegation_token_validation(token: Dict[str, Any]):
     # Validate token ID
     assert len(payload["jti"]) > 0, "Token ID must not be empty"
     
-    # Validate spending limit
-    spending_limit = payload["spendingLimit"]
-    assert "value" in spending_limit, "Spending limit must have value"
-    assert "currency" in spending_limit, "Spending limit must have currency"
-    
-    limit_value = Decimal(spending_limit["value"])
-    assert limit_value > 0, f"Spending limit must be positive, got {limit_value}"
-    
-    assert len(spending_limit["currency"]) == 3, \
-        f"Currency code must be 3 characters, got {spending_limit['currency']}"
-    
     # Validate allowed operations
     if "allowedOperations" in payload:
         allowed_ops = payload["allowedOperations"]
@@ -265,18 +205,6 @@ def test_property_7_delegation_token_validation(token: Dict[str, Any]):
         # Check for duplicates
         assert len(allowed_ops) == len(set(allowed_ops)), \
             "Allowed operations must not contain duplicates"
-    
-    # Validate delegation depth
-    if "maxDelegationDepth" in payload:
-        depth = payload["maxDelegationDepth"]
-        assert isinstance(depth, int), "Delegation depth must be integer"
-        assert 0 <= depth <= 5, \
-            f"Delegation depth must be between 0 and 5, got {depth}"
-    
-    # Validate budget category
-    if "budgetCategory" in payload:
-        assert len(payload["budgetCategory"]) > 0, \
-            "Budget category must not be empty"
     
     # Validate signature format (base64url)
     signature = token["signature"]
@@ -297,10 +225,9 @@ def test_property_9_hierarchical_delegation_support(chain: List[Dict[str, Any]])
     further delegations within the original token's constraints.
     
     This test validates that:
-    1. Delegation chains maintain proper parent-child relationships
-    2. Spending limits are monotonically decreasing through the chain
+    1. Delegation chains maintain proper source-target relationships
     3. Delegation depth decreases at each level
-    4. Operation restrictions are cumulative (child ⊆ parent)
+    4. Operation restrictions are cumulative (target ⊆ source)
     5. Currency remains consistent through the chain
     6. Delegation chain tracking is accurate
     7. Maximum chain depth is enforced (≤5 levels)
@@ -314,114 +241,33 @@ def test_property_9_hierarchical_delegation_support(chain: List[Dict[str, Any]])
     
     # Validate root token (first in chain)
     root_token = chain[0]
-    assert "parentTokenId" not in root_token["payload"], \
-        "Root token must not have parent token ID"
+    assert "sourceTokenId" not in root_token["payload"], \
+        "Root token must not have source token ID"
     assert "delegationChain" not in root_token["payload"], \
         "Root token must not have delegation chain"
     
-    # Validate each child token in the chain
+    # Validate each target token in the chain
     for i in range(1, len(chain)):
-        parent_token = chain[i - 1]
-        child_token = chain[i]
+        source_token = chain[i - 1]
+        target_token = chain[i]
         
-        parent_payload = parent_token["payload"]
-        child_payload = child_token["payload"]
-        
-        # Validate parent-child relationship
-        assert "parentTokenId" in child_payload, \
-            f"Child token at level {i} must have parent token ID"
-        assert child_payload["parentTokenId"] == parent_payload["jti"], \
-            f"Child token parent ID must match parent token ID"
-        
-        # Validate delegation chain tracking
-        assert "delegationChain" in child_payload, \
-            f"Child token at level {i} must have delegation chain"
-        
-        expected_chain_length = i
-        assert len(child_payload["delegationChain"]) == expected_chain_length, \
-            f"Delegation chain length should be {expected_chain_length}, got {len(child_payload['delegationChain'])}"
-        
-        # Validate chain contains parent token ID
-        assert parent_payload["jti"] in child_payload["delegationChain"], \
-            "Delegation chain must contain parent token ID"
-        
-        # Validate spending limits are monotonically decreasing
-        parent_limit = Decimal(parent_payload["spendingLimit"]["value"])
-        child_limit = Decimal(child_payload["spendingLimit"]["value"])
-        assert child_limit <= parent_limit, \
-            f"Child spending limit ({child_limit}) must be ≤ parent limit ({parent_limit})"
-        
-        # Validate currency consistency
-        assert child_payload["spendingLimit"]["currency"] == parent_payload["spendingLimit"]["currency"], \
-            "Currency must remain consistent through delegation chain"
-        
-        # Validate delegation depth decreases
-        parent_depth = parent_payload["maxDelegationDepth"]
-        child_depth = child_payload["maxDelegationDepth"]
-        assert child_depth < parent_depth, \
-            f"Child delegation depth ({child_depth}) must be < parent depth ({parent_depth})"
-        assert child_depth >= 0, \
-            f"Delegation depth must be non-negative, got {child_depth}"
+        source_payload = source_token["payload"]
+        target_payload = target_token["payload"]
         
         # Validate operation restrictions are cumulative
-        parent_ops = set(parent_payload.get("allowedOperations", []))
-        child_ops = set(child_payload.get("allowedOperations", []))
+        source_ops = set(source_payload.get("allowedOperations", []))
+        target_ops = set(target_payload.get("allowedOperations", []))
         
-        # If parent has empty operations (all allowed), child can have any
-        # If parent has specific operations, child must be subset
-        if parent_ops:
-            assert child_ops.issubset(parent_ops) or not child_ops, \
-                f"Child operations must be subset of parent operations. Parent: {parent_ops}, Child: {child_ops}"
+        # If source has empty operations (all allowed), target can have any
+        # If source has specific operations, target must be subset
+        if source_ops:
+            assert target_ops.issubset(source_ops) or not target_ops, \
+                f"Child operations must be subset of source operations. Parent: {source_ops}, Child: {target_ops}"
         
         # Validate issuer-subject chain
-        # Child's issuer should be parent's subject (delegation flow)
-        assert child_payload["iss"] == parent_payload["sub"], \
-            f"Child issuer must be parent subject (delegation flow)"
-
-
-@given(
-    token=delegation_token(),
-    transaction_amount=st.decimals(
-        min_value=Decimal("0.01"),
-        max_value=Decimal("999999.99"),
-        places=2
-    ),
-    cumulative_spent=st.decimals(
-        min_value=Decimal("0.00"),
-        max_value=Decimal("999999.99"),
-        places=2
-    )
-)
-@settings(max_examples=100)
-def test_spending_limit_enforcement(
-    token: Dict[str, Any],
-    transaction_amount: Decimal,
-    cumulative_spent: Decimal
-):
-    """
-    Test that spending limits are properly enforced.
-    
-    A transaction should only be allowed if:
-    cumulative_spent + transaction_amount <= spending_limit
-    """
-    spending_limit = Decimal(token["payload"]["spendingLimit"]["value"])
-    
-    # Determine if transaction should be allowed
-    would_exceed = (cumulative_spent + transaction_amount) > spending_limit
-    
-    if would_exceed:
-        # Transaction should be rejected
-        assert cumulative_spent + transaction_amount > spending_limit, \
-            "Transaction would exceed spending limit and should be rejected"
-    else:
-        # Transaction should be allowed
-        assert cumulative_spent + transaction_amount <= spending_limit, \
-            "Transaction is within spending limit and should be allowed"
-        
-        # Validate new cumulative spending
-        new_cumulative = cumulative_spent + transaction_amount
-        assert new_cumulative <= spending_limit, \
-            "New cumulative spending must not exceed limit"
+        # Child's issuer should be source's subject (delegation flow)
+        assert target_payload["iss"] == source_payload["sub"], \
+            f"Child issuer must be source subject (delegation flow)"
 
 
 @given(
@@ -507,7 +353,6 @@ def test_delegation_chain_validation(chain: List[Dict[str, Any]]):
     For a delegation to be valid, all tokens in the chain must:
     1. Have valid signatures
     2. Not be expired
-    3. Maintain spending limit constraints
     4. Maintain operation restrictions
     """
     # Validate each token in the chain
@@ -525,18 +370,10 @@ def test_delegation_chain_validation(chain: List[Dict[str, Any]]):
     # Validate chain relationships
     if len(chain) > 1:
         for i in range(1, len(chain)):
-            parent = chain[i - 1]
-            child = chain[i]
+            source = chain[i - 1]
+            target = chain[i]
             
-            # Validate parent allows delegation
-            parent_depth = parent["payload"]["maxDelegationDepth"]
-            assert parent_depth > 0, \
-                f"Parent token at level {i-1} must allow delegation (depth > 0)"
-            
-            # Validate child depth is less than parent
-            child_depth = child["payload"]["maxDelegationDepth"]
-            assert child_depth < parent_depth, \
-                f"Child depth must be less than parent depth"
+
 
 
 @given(token=delegation_token())

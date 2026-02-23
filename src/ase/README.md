@@ -140,8 +140,6 @@ signer = TokenSigner(signing_service)
 token = signer.create_delegation_token(
     delegating_agent_id="agent_001",
     delegated_agent_id="agent_002",
-    spending_limit_value="100.00",
-    spending_limit_currency="USD",
     allowed_operations=["read", "write"],
     budget_category="compute",
     key_id="key_001",
@@ -152,7 +150,6 @@ token = signer.create_delegation_token(
 verifier = TokenVerifier(verification_service)
 claims = verifier.verify_token(token)
 print(f"Delegated to: {claims.sub}")
-print(f"Spending limit: {claims.spending_limit}")
 ```
 
 ### Framework Adapters (`adapters/`)
@@ -286,10 +283,8 @@ adapter = LangChainAdapter()
 
 # Create delegation token
 token = token_signer.create_delegation_token(
-    delegating_agent_id="parent_agent",
-    delegated_agent_id="child_agent",
-    spending_limit_value="100.00",
-    spending_limit_currency="USD",
+    delegating_agent_id="source_agent",
+    delegated_agent_id="target_agent",
     allowed_operations=["read", "write"],
     budget_category="compute",
     key_id="key_001"
@@ -303,7 +298,7 @@ message_with_token = adapter.attach_delegation_token(message, token)
 charge = adapter.create_charge_event(
     event_type="provisional",
     amount={"value": "5.00", "currency": "USD"},
-    agent_id="child_agent",
+    agent_id="target_agent",
     description="Task execution"
 )
 

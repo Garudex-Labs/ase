@@ -135,7 +135,7 @@ def delegation_token_payload(draw):
         "exp": int((datetime.now(timezone.utc) + timedelta(hours=draw(st.integers(min_value=1, max_value=168)))).timestamp()),
         "iat": int(datetime.now(timezone.utc).timestamp()),
         "jti": draw(st.text(min_size=20, max_size=40)),
-        "spendingLimit": draw(monetary_amount()),
+        
         "allowedOperations": draw(st.lists(st.sampled_from(["read", "write", "execute", "delegate"]), min_size=1, max_size=4, unique=True)),
         "maxDelegationDepth": draw(st.integers(min_value=0, max_value=5)),
         "budgetCategory": draw(st.sampled_from(["compute", "storage", "network", "general"]))
@@ -363,14 +363,14 @@ def test_delegation_token_exchange(
     Test Scenario: Delegation Token Exchange
     
     Validates delegation token exchange between ASE agents:
-    - Parent agent creates delegation token
-    - Token is transmitted to child agent
-    - Child agent validates token
-    - Child agent uses token for authorized operations
+    - Source agent creates delegation token
+    - Token is transmitted to target agent
+    - Target agent validates token
+    - Target agent uses token for authorized operations
     
     Expected Behavior:
     - Tokens are properly formatted
-    - Spending limits are enforced
+    - Target operations are authorized
     - Allowed operations are validated
     - Token expiration is checked
     """
@@ -395,8 +395,8 @@ def test_delegation_token_exchange(
             "agentIdentity": {
                 "agentId": delegating_agent,
                 "agentType": "autonomous",
-                "organizationId": "org_parent",
-                "settlementAccount": "acct_parent"
+                "organizationId": "org_source",
+                "settlementAccount": "acct_source"
             },
             "delegationToken": token
         }
@@ -409,7 +409,7 @@ def test_delegation_token_exchange(
     # Validate token payload (extracted from token)
     assert token_payload["iss"] == delegating_agent
     assert token_payload["sub"] == delegated_agent
-    assert "spendingLimit" in token_payload
+    
     assert "allowedOperations" in token_payload
 
 
